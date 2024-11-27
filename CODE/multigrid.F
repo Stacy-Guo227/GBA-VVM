@@ -386,12 +386,19 @@ cy1 = -1._dbl_kind/(dy*dy)
 cy3 = -1._dbl_kind/(dy*dy)
 cy2 = -(cy1+cy3)
 
+!!$acc data copyin(phi) copyout(f)
+
+!!$acc parallel loop
 do j=1,ny
+!!$acc loop
 do i=1,nx
   f(i,j,1) = cx1*phi(i+1,j,1)+cx2*phi(i,j,1)+cx3*phi(i-1,j,1) &
             +cy1*phi(i,j+1,1)+cy2*phi(i,j,1)+cy3*phi(i,j-1,1)
 enddo
 enddo
+
+!!$acc end data
+
 end subroutine laplacian_2d
 
 
@@ -415,6 +422,7 @@ cy2 = -(cy1+cy3)
 cz1 = 0._dbl_kind
 cz2 = 0._dbl_kind
 cz3 = 0._dbl_kind
+
 do k=2,nz-1
   cz1(k) = -(rhoz(k)*fnz(k)*fnu(k+1))/(dz*dz*rhou(k+1))
   cz3(k) = -(rhoz(k)*fnz(k)*fnu(k))/(dz*dz*rhou(k))
@@ -423,10 +431,23 @@ enddo
 cz1(nz-1) = 0.
 cz3(2) = 0.
 
-f(:,:,1) = 0.
-f(:,:,nz) = 0.
+!$acc data copyin(phi) copyout(f) copyin(cz1, cz2, cz3)
+
+!$acc parallel loop
+do j=1,ny
+!$acc loop
+do i=1,nx
+  f(i,j,1) = 0.
+  f(i,j,nz) = 0.
+enddo
+enddo
+
+
+!$acc parallel loop
 do k=2,nz-1
+  !$acc loop
   do j=1,ny
+  !$acc loop
   do i=1,nx
     f(i,j,k) = cx1*phi(i+1,j,k)+cx2*phi(i,j,k)+cx3*phi(i-1,j,k) &
               +cy1*phi(i,j+1,k)+cy2*phi(i,j,k)+cy3*phi(i,j-1,k) &
@@ -434,6 +455,8 @@ do k=2,nz-1
   enddo
   enddo
 enddo
+
+!$acc end data
 end subroutine laplacian_3d
 
 subroutine bound_mg(A,nx,ny,nz)
