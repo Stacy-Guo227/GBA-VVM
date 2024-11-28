@@ -52,7 +52,12 @@ CONTAINS
 
       call nvtxStartRange('advection')
       call timer_start('advection')
-      !$acc enter data copyin(u3dx, u3dy, w3d, rhou, rhoz, fnu, itypew)
+!      !$acc enter data copyin(u3dx, u3dy, w3d, rhou, rhoz, fnu, itypew)
+!      !$acc ender data copyin(TH3D, QV3D, QR3D, QC3D, QI3D, NC3D, NR3D, NI3D, QRIM3D, BRIM3D, QS3D, TC3D, CHEM3D)
+!      !$acc ender data create(FTH3D, thstd1, FQV3D, QVSTD, FQR3D, HYSG3D, FQC3D, term4, FQI3D, FNC3D, FNR3D, FNI3D, FQRIM3D, FBRIM3D, FQS3D, FTC3D, FCHEM3D)
+      
+      !$acc data copyin(u3dx, u3dy, w3d, rhou, rhoz, fnu, itypew, TH3D, QV3D, QR3D, QC3D, QI3D, NC3D, NR3D, NI3D, QRIM3D, BRIM3D, QS3D, TC3D, CHEM3D) create(FTH3D, thstd1, FQV3D, QVSTD, FQR3D, HYSG3D, FQC3D, term4, FQI3D, FNC3D, FNR3D, FNI3D, FQRIM3D, FBRIM3D, FQS3D, FTC3D, FCHEM3D)
+
       CALL ADVEC_3D ( TH3D, FTH3D(1,1,1,L), thstd1  )
 #if defined (PHYSICS)
 
@@ -75,12 +80,16 @@ CONTAINS
 
       CALL ADVEC_3D ( BRIM3D, FBRIM3D(1,1,1,L), term4 )
 #if defined (LIQFRACP3)
-
+!      !$acc enter data copyin(QILIQ3D) create(FQILIQ3D(1,1,1,L))
       CALL ADVEC_3D ( QILIQ3D, FQILIQ3D(1,1,1,L), term4 )
+!      !$acc update self(FQILIQ3D(1,1,1,L))
+!      !$acc exit data delete(QILIQ3D, FQILIQ3D(1,1,1,L))
+
 #endif
 #else
-
+!      !$acc enter data copyin(QS3D) create(FQS3D(1,1,1,L))
       CALL ADVEC_3D ( QS3D, FQS3D(1,1,1,L), term4 )
+!      !$acc exit data delete(QS3D) copyout(FQS3D(1,1,1,L))
 !      DO 160 K = 2, NK2
 !      DO 160 J = 1, MJ1
 !      DO 160 I = 1, MI1
@@ -110,7 +119,11 @@ CONTAINS
 
 
 #endif
-      !$acc exit data delete(u3dx, u3dy, w3d, rhou, rhoz, fnu, itypew)
+!      !$acc exit data delete(u3dx, u3dy, w3d, rhou, rhoz, fnu, itypew)
+!      !$acc exit data delete(TH3D, QV3D, QR3D, QC3D, QI3D, NC3D, NR3D, NI3D, QRIM3D, BRIM3D, QS3D, TC3D, CHEM3D)
+!      !$acc exit data delete(FTH3D, thstd1, FQV3D, QVSTD, FQR3D, HYSG3D, FQC3D, term4, FQI3D, FNC3D, FNR3D, FNI3D, FQRIM3D, FBRIM3D, FQS3D, FTC3D, FCHEM3D)
+      !$acc update self(FTH3D, thstd1, FQV3D, QVSTD, FQR3D, HYSG3D, FQC3D, term4, FQI3D, FNC3D, FNR3D, FNI3D, FQRIM3D, FBRIM3D, FQS3D, FTC3D, FCHEM3D)
+      !$acc end data
       call timer_stop('advection')
       call nvtxEndRange
 
