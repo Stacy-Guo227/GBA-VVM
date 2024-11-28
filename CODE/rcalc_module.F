@@ -56,40 +56,37 @@ CONTAINS
 !      !$acc ender data copyin(TH3D, QV3D, QR3D, QC3D, QI3D, NC3D, NR3D, NI3D, QRIM3D, BRIM3D, QS3D, TC3D, CHEM3D)
 !      !$acc ender data create(FTH3D, thstd1, FQV3D, QVSTD, FQR3D, HYSG3D, FQC3D, term4, FQI3D, FNC3D, FNR3D, FNI3D, FQRIM3D, FBRIM3D, FQS3D, FTC3D, FCHEM3D)
       
-      !$acc data copyin(u3dx, u3dy, w3d, rhou, rhoz, fnu, itypew, TH3D, QV3D, QR3D, QC3D, QI3D, NC3D, NR3D, NI3D, QRIM3D, BRIM3D, QS3D, TC3D, CHEM3D) create(FTH3D, thstd1, FQV3D, QVSTD, FQR3D, HYSG3D, FQC3D, term4, FQI3D, FNC3D, FNR3D, FNI3D, FQRIM3D, FBRIM3D, FQS3D, FTC3D, FCHEM3D)
+      !$acc data copyin(u3dx, u3dy, w3d, rhou, rhoz, fnu, itypew, TH3D, QV3D, QR3D, QC3D, QI3D, NC3D, NR3D, NI3D, QRIM3D, BRIM3D, QS3D, TC3D(:,:,:,1:ntracer), CHEM3D(:,:,:,1:nchem)) &
+      !$acc create(FTH3D(:,:,:,L), thstd1, FQV3D(:,:,:,L), QVSTD, FQR3D(:,:,:,L), HYSG3D, FQC3D(:,:,:,L), term4, FQI3D(:,:,:,L), FNC3D(:,:,:,L), FNR3D(:,:,:,L), FNI3D(:,:,:,L))      &
+      !$acc create(FQRIM3D(:,:,:,L), FBRIM3D(:,:,:,L), FQS3D(:,:,:,L), FTC3D(:,:,:,L,1:ntracer), FCHEM3D(:,:,:,L,1:nchem))
 
-      CALL ADVEC_3D ( TH3D, FTH3D(1,1,1,L), thstd1  )
+      CALL ADVEC_3D ( TH3D, FTH3D(:,:,:,L), thstd1  )
 #if defined (PHYSICS)
 
-      CALL ADVEC_3D ( QV3D, FQV3D(1,1,1,L), QVSTD )
+      CALL ADVEC_3D ( QV3D, FQV3D(:,:,:,L), QVSTD )
   
-      CALL ADVEC_3D ( QR3D, FQR3D(1,1,1,L), HYSG3D )
+      CALL ADVEC_3D ( QR3D, FQR3D(:,:,:,L), HYSG3D )
       
-      CALL ADVEC_3D ( QC3D, FQC3D(1,1,1,L), term4 )
+      CALL ADVEC_3D ( QC3D, FQC3D(:,:,:,L), term4 )
 
-      CALL ADVEC_3D ( QI3D, FQI3D(1,1,1,L), term4 )
+      CALL ADVEC_3D ( QI3D, FQI3D(:,:,:,L), term4 )
 
 #if defined (MICROP3)
-      CALL ADVEC_3D ( NC3D, FNC3D(1,1,1,L), term4 )
+      CALL ADVEC_3D ( NC3D, FNC3D(:,:,:,L), term4 )
 
-      CALL ADVEC_3D ( NR3D, FNR3D(1,1,1,L), term4 )
+      CALL ADVEC_3D ( NR3D, FNR3D(:,:,:,L), term4 )
 
-      CALL ADVEC_3D ( NI3D, FNI3D(1,1,1,L), term4 )
+      CALL ADVEC_3D ( NI3D, FNI3D(:,:,:,L), term4 )
 
-      CALL ADVEC_3D ( QRIM3D, FQRIM3D(1,1,1,L), term4 )
+      CALL ADVEC_3D ( QRIM3D, FQRIM3D(:,:,:,L), term4 )
 
-      CALL ADVEC_3D ( BRIM3D, FBRIM3D(1,1,1,L), term4 )
+      CALL ADVEC_3D ( BRIM3D, FBRIM3D(:,:,:,L), term4 )
 #if defined (LIQFRACP3)
-!      !$acc enter data copyin(QILIQ3D) create(FQILIQ3D(1,1,1,L))
-      CALL ADVEC_3D ( QILIQ3D, FQILIQ3D(1,1,1,L), term4 )
-!      !$acc update self(FQILIQ3D(1,1,1,L))
-!      !$acc exit data delete(QILIQ3D, FQILIQ3D(1,1,1,L))
+      CALL ADVEC_3D ( QILIQ3D, FQILIQ3D(:,:,:,L), term4 )
 
 #endif
 #else
-!      !$acc enter data copyin(QS3D) create(FQS3D(1,1,1,L))
-      CALL ADVEC_3D ( QS3D, FQS3D(1,1,1,L), term4 )
-!      !$acc exit data delete(QS3D) copyout(FQS3D(1,1,1,L))
+      CALL ADVEC_3D ( QS3D, FQS3D(:,:,:,L), term4 )
 !      DO 160 K = 2, NK2
 !      DO 160 J = 1, MJ1
 !      DO 160 I = 1, MI1
@@ -107,13 +104,13 @@ CONTAINS
     
       if (ntracer > 0)then
          do nt = 1,ntracer
-            CALL ADVEC_3D ( TC3D(mim,mjm,1,nt), FTC3D(1,1,1,L,nt), term4 )
+            CALL ADVEC_3D ( TC3D(mim,mjm,1,nt), FTC3D(:,:,:,L,nt), term4 )
          enddo
       endif
 
 #if defined (CHEM)
          do nt = 1,nchem
-            CALL ADVEC_3D ( CHEM3D(mim,mjm,1,nt), FCHEM3D(1,1,1,L,nt), term4 )
+            CALL ADVEC_3D ( CHEM3D(mim,mjm,1,nt), FCHEM3D(:,:,:,L,nt), term4 )
          enddo
 #endif
 
@@ -122,7 +119,7 @@ CONTAINS
 !      !$acc exit data delete(u3dx, u3dy, w3d, rhou, rhoz, fnu, itypew)
 !      !$acc exit data delete(TH3D, QV3D, QR3D, QC3D, QI3D, NC3D, NR3D, NI3D, QRIM3D, BRIM3D, QS3D, TC3D, CHEM3D)
 !      !$acc exit data delete(FTH3D, thstd1, FQV3D, QVSTD, FQR3D, HYSG3D, FQC3D, term4, FQI3D, FNC3D, FNR3D, FNI3D, FQRIM3D, FBRIM3D, FQS3D, FTC3D, FCHEM3D)
-      !$acc update self(FTH3D, thstd1, FQV3D, QVSTD, FQR3D, HYSG3D, FQC3D, term4, FQI3D, FNC3D, FNR3D, FNI3D, FQRIM3D, FBRIM3D, FQS3D, FTC3D, FCHEM3D)
+      !$acc update self(FTH3D(:,:,:,L), FQV3D(:,:,:,L), FQR3D(:,:,:,L), FQC3D(:,:,:,L), FQI3D(:,:,:,L), FNC3D(:,:,:,L), FNR3D(:,:,:,L), FNI3D(:,:,:,L), FQRIM3D(:,:,:,L), FBRIM3D(:,:,:,L), FQS3D(:,:,:,L), FTC3D(:,:,:,L,1:ntracer), FCHEM3D(:,:,:,L,1:nchem))
       !$acc end data
       call timer_stop('advection')
       call nvtxEndRange
