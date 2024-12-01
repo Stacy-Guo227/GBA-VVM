@@ -95,21 +95,22 @@ CONTAINS
 !                               *(HLF/CP)*86400.
 !  170 CONTINUE
 #endif
-      !$acc wait
+
       if (ntracer > 0)then
          do nt = 1,ntracer
-            CALL ADVEC_3D ( TC3D(mim,mjm,1,nt), FTC3D(:,:,:,L,nt) )
+            CALL ADVEC_3D ( TC3D(mim,mjm,1,nt), FTC3D(:,:,:,L,nt) ) !$acc async(6)
          enddo
       endif
 
 #if defined (CHEM)
          do nt = 1,nchem
-            CALL ADVEC_3D ( CHEM3D(mim,mjm,1,nt), FCHEM3D(:,:,:,L,nt) )
+            CALL ADVEC_3D ( CHEM3D(mim,mjm,1,nt), FCHEM3D(:,:,:,L,nt) ) !$acc async(7)
          enddo
 #endif
 
 
 #endif
+      !$acc wait
       !$acc end data
       call timer_stop('advection')
       call nvtxEndRange
