@@ -70,13 +70,13 @@ CONTAINS
 !      END DO
 !      END DO
 
-      !$acc parallel loop collapse(2) async(stream_id+1)
+      !$acc parallel loop gang worker collapse(2) async(stream_id+1)
       DO K=2,NK2
       DO J=1,MJ1
       UEW(1,J,K) = UEW(1,J,K)*RHOU(K) ! use for u(-1,J,K) =uew(1,J,K)
       UEW(1,J,K) = 0.5*(UEW(1,J,K)+ABS(UEW(1,J,K)))
       UEW(1,J,K) = SQRT(UEW(1,J,K))
-      !$acc loop
+      !$acc loop vector
       DO I=mim,mip
       TEMPI_z(I,J,K)=U3DX(I,J,K)*RHOU(K)
       UPI_z(I,J,K)=0.5*(TEMPI_z(I,J,K)+ABS(TEMPI_z(I,J,K)))
@@ -138,13 +138,13 @@ CONTAINS
 !      END DO
 !      END DO
 
-      !$acc parallel loop collapse(2) async(stream_id+2)
+      !$acc parallel loop gang worker collapse(2) async(stream_id+2)
       DO K=2,NK2
       DO I=1,MI1
       VNS(I,1,K) = RHOU(K)*VNS(I,1,K)
       VNS(I,1,K) = 0.5*(VNS(I,1,K)+ABS(VNS(I,1,K)))
       VNS(I,1,K) = SQRT(VNS(I,1,K))
-      !$acc loop
+      !$acc loop vector
       DO J = mjm,mjp
       TEMPI_m(I,J,K)=U3DY(I,J,K)*RHOU(K)
       UPI_m(I,J,K)=0.5*(TEMPI_m(I,J,K)+ABS(TEMPI_m(I,J,K)))
@@ -159,7 +159,7 @@ CONTAINS
        -UPSRI_m(I,J,K)*VNS(I,1,K)*(Q(I,J,K)-QNS(I,1,K))  &
        +UMI_m(I,J,K)*(Q(I,J,K)-Q(I,J+1,K))                 &
        +UMSRI_m(I,J,K)*UMSRI_m(I,J+1,K)*(Q(I,J+1,K)-Q(I,J+2,K)))/3.
-      !$acc loop
+      !$acc loop vector
       DO J=1,MJ1-1
       FLXI_m(I,J,K)=TEMPI_m(I,J,K)*(Q(I,J+1,K)+Q(I,J,K))       &
        -ALADV*(UPI_m(I,J,K)*(Q(I,J+1,K)-Q(I,J,K))          &
@@ -213,10 +213,10 @@ CONTAINS
 !      END DO
 !      END DO
 
-      !$acc parallel loop collapse(2) async(stream_id+3)
+      !$acc parallel loop gang worker collapse(2) async(stream_id+3)
       DO J=1,MJ1
       DO I=1,MI1
-      !$acc loop
+      !$acc loop vector
       DO K=2,NK1 !k=2~49
       TEMPI_v(I,J,K)=W3D(I,J,K)*RHOZ(K)
       UPI_v(I,J,K)=0.5*(TEMPI_v(I,J,K)+ABS(TEMPI_v(I,J,K)))
@@ -224,7 +224,7 @@ CONTAINS
       UPSRI_v(I,J,K)=SQRT(UPI_v(I,J,K))
       UMSRI_v(I,J,K)=SQRT(ABS(UMI_v(I,J,K)))
       END DO
-      !$acc loop
+      !$acc loop vector
       DO K=3, NK1-1 !k=3~48
       FLXI_v(I,J,K)=TEMPI_v(I,J,K)*(Q(I,J,K+1)+Q(I,J,K))       &
        -ALADV*(UPI_v(I,J,K)*(Q(I,J,K+1)-Q(I,J,K))          &
@@ -276,7 +276,7 @@ CONTAINS
 !      END DO
 !      END DO
       !$acc wait(stream_id+1, stream_id+2, stream_id+3)
-      !$acc parallel loop collapse(3)
+      !$acc parallel loop gang vector collapse(3)
       DO K=2,NK2
       DO J=1,MJ1
       DO I=1,MI1
