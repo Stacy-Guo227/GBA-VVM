@@ -14,6 +14,7 @@ USE advec_3d_module
 USE timer
 USE domain_decomposition
 USE nvtx
+USE bound
 
 IMPLICIT NONE
 PRIVATE
@@ -36,7 +37,19 @@ CONTAINS
          n1,        & ! AB forcing time index for previous timestep
          n2           ! AB forcing time index for current timestep
 
-      REAL (KIND=dbl_kind), DIMENSION(mim:mip,mjm:mjp,nk3) :: term4
+!      REAL (KIND=dbl_kind), DIMENSION(mim:mip,mjm:mjp,nk3) :: term4
+      REAL (KIND=dbl_kind), DIMENSION(2,mjm:mjp,nk3) :: &
+      THew, QVew, QRew, QCew, QIew, NCew, NRew, NIew, QRIMew, BRIMew, QSew, uew  ! extended copy of q  ew
+      REAL (KIND=dbl_kind), DIMENSION(2,mjm:mjp,nk3, ntracer) :: &
+      TCew
+      REAL (KIND=dbl_kind), DIMENSION(2,mjm:mjp,nk3, nchem) :: &
+      CHEMew
+      REAL (KIND=dbl_kind), DIMENSION(mim:mip,2,nk3) :: &
+      THns, QVns, QRns, QCns, QIns, NCns, NRns, NIns, QRIMns, BRIMns, QSns, vns  ! extended copy of q  ns
+      REAL (KIND=dbl_kind), DIMENSION(mim:mip,2,nk3, ntracer) :: &
+      TCns
+      REAL (KIND=dbl_kind), DIMENSION(mim:mip,2,nk3, nchem) :: &
+      CHEMns
       INTEGER (KIND=int_kind) ::  &
          i, j, k, & ! do loop indices for zonal, meridional and vertical dimensions
          l, nt      ! time level index, tracer index
@@ -52,35 +65,81 @@ CONTAINS
 
       call nvtxStartRange('advection')
       call timer_start('advection')
-      !$acc data copyin(u3dx, u3dy, w3d, rhou, rhoz, fnu, itypew)
-      CALL ADVEC_3D ( TH3D, FTH3D(:,:,:,L) ) !$acc async(1)
-#if defined (PHYSICS)
-
-      CALL ADVEC_3D ( QV3D, FQV3D(:,:,:,L) ) !$acc async(1)
-  
-      CALL ADVEC_3D ( QR3D, FQR3D(:,:,:,L) ) !$acc async(1)
+      !$acc data copyin(rhou, fnu, rhoz, itypew, u3dy, w3d, u3dx) create(TH3D, FTH3D(:,:,:,L), THew, THns, QV3D, FQV3D(:,:,:,L), QVew, QVns, QR3D, FQR3D(:,:,:,L), QRew, QRns) &
+      !$acc create(QC3D, FQC3D(:,:,:,L), QCew, QCns, QI3D, FQI3D(:,:,:,L), QIew, QIns, NC3D,  FNC3D(:,:,:,L), NCew, NCns, NR3D, FNR3D(:,:,:,L), NRew, NRns) & 
+      !$acc create(NI3D, FNI3D(:,:,:,L), NIew, NIns, QRIM3D, FQRIM3D(:,:,:,L), QRIMew, QRIMns, BRIM3D, FBRIM3D(:,:,:,L), BRIMew, BRIMns, QS3D, FQS3D(:,:,:,L), QSew, QSns) &
+      !$acc create(TC3D, FTC3D(:,:,:,L), TCew, TCns, CHEM3D, FCHEM3D(:,:,:,L), CHEMew, CHEMns, uew, vns)
       
-      CALL ADVEC_3D ( QC3D, FQC3D(:,:,:,L) ) !$acc async(2)
-
-      CALL ADVEC_3D ( QI3D, FQI3D(:,:,:,L) ) !$acc async(2)
+      ! pass in 3D array and call extend_ne here
+      !$acc update device(TH3D)
+      call extend_ne(nk3, TH3D, THew, THns, U3DX, uew, U3DY, vns)
+#if defined (PHYSICS)
+      !$acc update device(QV3D)
+      call extend_ne(nk3, QV3D, QVew, QVns, U3DX, uew, U3DY, vns)
+      !$acc update device(QR3D)
+      call extend_ne(nk3, QR3D, QRew, QRns, U3DX, uew, U3DY, vns)
+      !$acc update device(QC3D)
+      call extend_ne(nk3, QC3D, QCew, QCns, U3DX, uew, U3DY, vns)
+      !$acc update device(QI3D)
+      call extend_ne(nk3, QI3D, QIew, QIns, U3DX, uew, U3DY, vns)
 
 #if defined (MICROP3)
-      CALL ADVEC_3D ( NC3D, FNC3D(:,:,:,L) ) !$acc async(3)
+      !$acc update device(NC3D)
+      call extend_ne(nk3, NC3D, NCew, NCns, U3DX, uew, U3DY, vns)
+      !$acc update device(NR3D)
+      call extend_ne(nk3, NR3D, NRew, NRns, U3DX, uew, U3DY, vns)
+      !$acc update device(NI3D)
+      call extend_ne(nk3, NI3D, NIew, NIns, U3DX, uew, U3DY, vns)
+      !$acc update device(QRIM3D)
+      call extend_ne(nk3, QRIM3D, QRIMew, QRIMns, U3DX, uew, U3DY, vns)
+      !$acc update device(BRIM3D)
+      call extend_ne(nk3, BRIM3D, BRIMew, BRIMns, U3DX, uew, U3DY, vns)
+!      !$acc update device(QS3D)
+!      call extend_ne(nk3, QS3D, QSew, QSns, U3DX, uew, U3DY, vns)
+#endif
+      if (ntracer > 0)then
+         do nt = 1,ntracer
+            !$acc update device(TC3D(:,:,:,nt))
+            call extend_ne(nk3, TC3D(mim,mjm,1,nt), TCew(:,:,:,nt), TCns(:,:,:,nt), U3DX, uew, U3DY, vns)
+         enddo
+      endif
 
-      CALL ADVEC_3D ( NR3D, FNR3D(:,:,:,L) ) !$acc async(3)
+#if defined (CHEM)
+         do nt = 1,nchem
+            !$acc update device(CHEM3D(:,:,:,nt))
+            CALL extend_ne(nk3, CHEM3D(mim,mjm,1,nt), CHEMew(:,:,:,nt), CHEMns(:,:,:,nt), U3DX, uew, U3DY, vns)
+         enddo
+#endif
+#endif
 
-      CALL ADVEC_3D ( NI3D, FNI3D(:,:,:,L) ) !$acc async(3)
+      CALL ADVEC_3D ( TH3D, FTH3D(:,:,:,L), THew, THns, uew, vns ) !$acc async(1)
+#if defined (PHYSICS)
 
-      CALL ADVEC_3D ( QRIM3D, FQRIM3D(:,:,:,L) ) !$acc async(4)
+      CALL ADVEC_3D ( QV3D, FQV3D(:,:,:,L), QVew, QVns, uew, vns ) !$acc async(1)
+  
+      CALL ADVEC_3D ( QR3D, FQR3D(:,:,:,L), QRew, QRns, uew, vns ) !$acc async(1)
+      
+      CALL ADVEC_3D ( QC3D, FQC3D(:,:,:,L), QCew, QCns, uew, vns ) !$acc async(2)
 
-      CALL ADVEC_3D ( BRIM3D, FBRIM3D(:,:,:,L) ) !$acc async(4)
+      CALL ADVEC_3D ( QI3D, FQI3D(:,:,:,L), QIew, QIns, uew, vns ) !$acc async(2)
+
+#if defined (MICROP3)
+      CALL ADVEC_3D ( NC3D, FNC3D(:,:,:,L), NCew, NCns, uew, vns ) !$acc async(3)
+
+      CALL ADVEC_3D ( NR3D, FNR3D(:,:,:,L), NRew, NRns, uew, vns ) !$acc async(3)
+
+      CALL ADVEC_3D ( NI3D, FNI3D(:,:,:,L), NIew, NIns, uew, vns ) !$acc async(3)
+
+      CALL ADVEC_3D ( QRIM3D, FQRIM3D(:,:,:,L), QRIMew, QRIMns, uew, vns ) !$acc async(4)
+
+      CALL ADVEC_3D ( BRIM3D, FBRIM3D(:,:,:,L), BRIMew, BRIMns, uew, vns ) !$acc async(4)
 #if defined (LIQFRACP3)
 
-      CALL ADVEC_3D ( QILIQ3D, FQILIQ3D(:,:,:,L) ) !$acc async(4)
+      CALL ADVEC_3D ( QILIQ3D, FQILIQ3D(:,:,:,L), QILIQew, QILIQns, uew, vns ) !$acc async(4)
 #endif
 #else
 
-      CALL ADVEC_3D ( QS3D, FQS3D(:,:,:,L) ) !$acc async(4)
+      CALL ADVEC_3D ( QS3D, FQS3D(:,:,:,L), QSew, QSns, uew, vns ) !$acc async(4)
 !      DO 160 K = 2, NK2
 !      DO 160 J = 1, MJ1
 !      DO 160 I = 1, MI1
@@ -98,13 +157,13 @@ CONTAINS
       !$acc wait
       if (ntracer > 0)then
          do nt = 1,ntracer
-            CALL ADVEC_3D ( TC3D(mim,mjm,1,nt), FTC3D(:,:,:,L,nt) )
+            CALL ADVEC_3D ( TC3D(mim,mjm,1,nt), FTC3D(:,:,:,L,nt), TCew(:,:,:,nt), TCns(:,:,:,nt), uew, vns )
          enddo
       endif
 
 #if defined (CHEM)
          do nt = 1,nchem
-            CALL ADVEC_3D ( CHEM3D(mim,mjm,1,nt), FCHEM3D(:,:,:,L,nt) )
+            CALL ADVEC_3D ( CHEM3D(mim,mjm,1,nt), FCHEM3D(:,:,:,L,nt), CHEMew(:,:,:,nchem), CHEMns(:,:,:,nchem), uew, vns )
          enddo
 #endif
 

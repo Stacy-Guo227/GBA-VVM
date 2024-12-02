@@ -5,7 +5,7 @@ USE parmsld
 USE constld
 USE const3d
 USE profoutld
-USE bound
+!USE bound
 USE domain_decomposition
 
 IMPLICIT NONE
@@ -15,7 +15,8 @@ PUBLIC :: advec_3d
 
 CONTAINS
 
-      SUBROUTINE ADVEC_3D (Q,terma)
+      SUBROUTINE ADVEC_3D (Q,terma, qew, qns, uew, vns)
+!      !$acc routine vector
 !     Advection for thermodynamic variables 
 !     ALADV: alpha in advection scheme
 
@@ -25,6 +26,10 @@ CONTAINS
 
       REAL (KIND=dbl_kind), DIMENSION(mi1,mj1,NK2), INTENT(out) ::  &  
          terma      ! advective tendency (final)
+      REAL (KIND=dbl_kind), DIMENSION(2,mjm:mjp,nk3), INTENT(in) :: &
+         qew,uew  ! extended copy of q  ew
+      REAL (KIND=dbl_kind), DIMENSION(mim:mip,2,nk3), INTENT(in) :: &
+         qns,vns  ! extended copy of q  ns
 !      REAL (KIND=dbl_kind), DIMENSION(mim:mip,mjm:mjp,nk3), INTENT(out) ::  & 
 !         termf      ! vertical flux convergence
 
@@ -39,16 +44,17 @@ CONTAINS
 !         UPSRI(mim:mip,mjm:mjp,NK2),UMSRI(mim:mip,mjm:mjp,NK2)
 !      REAL (KIND=dbl_kind) :: &
 !         FLXI(0:MI1,0:mj1,NK2)
-      REAL (KIND=dbl_kind), DIMENSION(2,mjm:mjp,nk3) :: qew,uew  ! extended copy of q  ew
-      REAL (KIND=dbl_kind), DIMENSION(mim:mip,2,nk3) :: qns,vns  ! extended copy of q  ns
+!      REAL (KIND=dbl_kind), DIMENSION(2,mjm:mjp,nk3) :: qew,uew  ! extended copy of q  ew
+!      REAL (KIND=dbl_kind), DIMENSION(mim:mip,2,nk3) :: qns,vns  ! extended copy of q  ns
 
       INTEGER (KIND=int_kind) :: &
          i, j, k    ! do loop indices for zonal, meridional and vertical dimensions
 
-      call extend_ne(nk3,q,qew,qns,u3dx,uew,u3dy,vns)
+!      call extend_ne(nk3,q,qew,qns,u3dx,uew,u3dy,vns)
 
 ! OpenACC Structured Data region
-      !$acc data copyin(Q, qew, uew, qns, vns) copyout(terma) create(TEMPI_z, TEMPI_m, TEMPI_v, UPI_z, UPI_m, UPI_v, UMI_z, UMI_m, UMI_v, UPSRI_z, UPSRI_m, UPSRI_v, UMSRI_z, UMSRI_m, UMSRI_v, FLXI_z, FLXI_m, FLXI_v)
+!      !$acc data copyin(Q, qew, uew, qns, vns) copyout(terma) create(TEMPI_z, TEMPI_m, TEMPI_v, UPI_z, UPI_m, UPI_v, UMI_z, UMI_m, UMI_v, UPSRI_z, UPSRI_m, UPSRI_v, UMSRI_z, UMSRI_m, !UMSRI_v, FLXI_z, FLXI_m, FLXI_v)
+      !$acc data present(Q, qew, uew, qns, vns) copyout(terma) create(TEMPI_z, TEMPI_m, TEMPI_v, UPI_z, UPI_m, UPI_v, UMI_z, UMI_m, UMI_v, UPSRI_z, UPSRI_m, UPSRI_v, UMSRI_z, UMSRI_m, UMSRI_v, FLXI_z, FLXI_m, FLXI_v)
       
 !     Zonal advection
       !$acc parallel loop collapse(2) async(1)
