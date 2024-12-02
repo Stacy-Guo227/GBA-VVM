@@ -48,7 +48,7 @@ CONTAINS
       call extend_ne(nk3,q,qew,qns,u3dx,uew,u3dy,vns)
 
 ! OpenACC Structured Data region
-      !$acc data copyin(Q, qew, uew, qns, vns) copyout(terma) create(TEMPI_z, TEMPI_m, TEMPI_v, UPI_z, UPI_m, UPI_v, UMI_z, UMI_m, UMI_v, UPSRI_z, UPSRI_m, UPSRI_v, UMSRI_z, UMSRI_m, UMSRI_v, FLXI_z, FLXI_m, FLXI_v)
+      !$acc data copyin(qns, vns, uew, qew, Q) copyout(terma) create(TEMPI_z, TEMPI_m, TEMPI_v, UPI_z, UPI_m, UPI_v, UMI_z, UMI_m, UMI_v, UPSRI_z, UPSRI_m, UPSRI_v, UMSRI_z, UMSRI_m, UMSRI_v, FLXI_z, FLXI_m, FLXI_v)
       
 !     Zonal advection
       !$acc parallel loop collapse(2) async(1)
