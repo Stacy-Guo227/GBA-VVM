@@ -44,8 +44,8 @@ CONTAINS
 !         UPSRI(mim:mip,mjm:mjp,NK2),UMSRI(mim:mip,mjm:mjp,NK2)
 !      REAL (KIND=dbl_kind) :: &
 !         FLXI(0:MI1,0:mj1,NK2)
-!      REAL (KIND=dbl_kind), DIMENSION(2,mjm:mjp,nk3) :: qew,uew  ! extended copy of q  ew
-!      REAL (KIND=dbl_kind), DIMENSION(mim:mip,2,nk3) :: qns,vns  ! extended copy of q  ns
+      REAL (KIND=dbl_kind), DIMENSION(2,mjm:mjp,nk3) :: uew_temp  ! temporary copy of uew
+      REAL (KIND=dbl_kind), DIMENSION(mim:mip,2,nk3) :: vns_temp  ! temporary copy of vns
 
       INTEGER (KIND=int_kind) :: &
          i, j, k    ! do loop indices for zonal, meridional and vertical dimensions
@@ -54,15 +54,17 @@ CONTAINS
 
 ! OpenACC Structured Data region
 !      !$acc data copyin(Q, qew, uew, qns, vns) copyout(terma) create(TEMPI_z, TEMPI_m, TEMPI_v, UPI_z, UPI_m, UPI_v, UMI_z, UMI_m, UMI_v, UPSRI_z, UPSRI_m, UPSRI_v, UMSRI_z, UMSRI_m, !UMSRI_v, FLXI_z, FLXI_m, FLXI_v)
-      !$acc data present(Q, qew, uew, qns, vns) copyout(terma) create(TEMPI_z, TEMPI_m, TEMPI_v, UPI_z, UPI_m, UPI_v, UMI_z, UMI_m, UMI_v, UPSRI_z, UPSRI_m, UPSRI_v, UMSRI_z, UMSRI_m, UMSRI_v, FLXI_z, FLXI_m, FLXI_v)
+      !$acc data present(Q, terma, u3dx, u3dy, w3d, rhou, rhoz, fnu, itypew, qew, uew, qns, vns) &
+      !$acc create(TEMPI_z, TEMPI_m, TEMPI_v, UPI_z, UPI_m, UPI_v, UMI_z, UMI_m, UMI_v, UPSRI_z, UPSRI_m, UPSRI_v, UMSRI_z, UMSRI_m, UMSRI_v, FLXI_z, FLXI_m, FLXI_v, uew_temp, vns_temp)
+      !$acc update(qew, qns)
       
 !     Zonal advection
       !$acc parallel loop collapse(2) async(1)
       DO K = 2, NK2
       DO J = 1, MJ1
-      UEW(1,J,K) = UEW(1,J,K)*RHOU(K) ! use for u(-1,J,K) =uew(1,J,K)
-      UEW(1,J,K) = 0.5*(UEW(1,J,K)+ABS(UEW(1,J,K)))
-      UEW(1,J,K) = SQRT(UEW(1,J,K))
+      UEW_temp(1,J,K) = UEW(1,J,K)*RHOU(K) ! use for u(-1,J,K) =uew(1,J,K)
+      UEW_temp(1,J,K) = 0.5*(UEW_temp(1,J,K)+ABS(UEW_temp(1,J,K)))
+      UEW_temp(1,J,K) = SQRT(UEW_temp(1,J,K))
       !$acc loop
       DO I=mim,mip
       TEMPI_z(I,J,K)=U3DX(I,J,K)*RHOU(K)
@@ -73,19 +75,6 @@ CONTAINS
       END DO
       END DO
       END DO
-      !! Array version !!
-!      !$acc parallel loop
-!      DO K = 2, NK2
-!          UEW(1,1:MJ1,K)           = UEW(1,1:MJ1,K)*RHOU(K)
-!          TEMPI_z(mim:mip,1:MJ1,K) = U3DX(mim:mip,1:MJ1,K)*RHOU(K)
-!          VNS(1:MI1,1,K)           = VNS(1:MI1,1,K)*RHOU(K)  ! moved meridional initialization here
-!          TEMPI_m(1:MI1,mjm:mjp,K) = U3DY(1:MI1,mjm:mjp,K)*RHOU(K)
-!      END DO
-!      UEW(1,1:MJ1,2:NK2) = SQRT(0.5*(UEW(1,1:MJ1,2:NK2)+ABS(UEW(1,1:MJ1,2:NK2))))
-!      UPI_z(mim:mip,1:MJ1,2:NK2)   = 0.5*(TEMPI_z(mim:mip,1:MJ1,2:NK2)+ABS(TEMPI_z(mim:mip,1:MJ1,2:NK2)))
-!      UMI_z(mim:mip,1:MJ1,2:NK2)   = 0.5*(TEMPI_z(mim:mip,1:MJ1,2:NK2)-ABS(TEMPI_z(mim:mip,1:MJ1,2:NK2)))
-!      UPSRI_z(mim:mip,1:MJ1,2:NK2) = SQRT(UPI_z(mim:mip,1:MJ1,2:NK2))
-!      UMSRI_z(mim:mip,1:MJ1,2:NK2) = SQRT(ABS(UMI_z(mim:mip,1:MJ1,2:NK2)))
 
       !$acc parallel loop collapse(2) async(1)
       DO K=2,NK2
@@ -93,7 +82,7 @@ CONTAINS
       I = 0
       FLXI_z(I,J,K)=TEMPI_z(I,J,K)*(Q(I+1,J,K)+Q(I,J,K))     &
        -ALADV*(UPI_z(I,J,K)*(Q(I+1,J,K)-Q(I,J,K))         &
-       -UPSRI_z(I,J,K)*UEW(1,J,K)*(Q(I,J,K)-QEW(1,J,K)) &
+       -UPSRI_z(I,J,K)*UEW_temp(1,J,K)*(Q(I,J,K)-QEW(1,J,K)) &
        +UMI_z(I,J,K)*(Q(I,J,K)-Q(I+1,J,K))                &
        +UMSRI_z(I,J,K)*UMSRI_z(I+1,J,K)*(Q(I+1,J,K)-Q(I+2,J,K)))/3.
       !$acc loop
@@ -129,9 +118,9 @@ CONTAINS
       !$acc parallel loop collapse(2) async(2)
       DO K = 2, NK2
       DO I = 1,MI1
-      VNS(I,1,K) = RHOU(K)*VNS(I,1,K)
-      VNS(I,1,K) = 0.5*(VNS(I,1,K)+ABS(VNS(I,1,K)))
-      VNS(I,1,K) = SQRT(VNS(I,1,K))
+      VNS_temp(I,1,K) = RHOU(K)*VNS(I,1,K)
+      VNS_temp(I,1,K) = 0.5*(VNS_temp(I,1,K)+ABS(VNS_temp(I,1,K)))
+      VNS_temp(I,1,K) = SQRT(VNS_temp(I,1,K))
       !$acc loop
       DO J = mjm,mjp
       TEMPI_m(I,J,K)=U3DY(I,J,K)*RHOU(K)
@@ -142,12 +131,6 @@ CONTAINS
       END DO
       END DO
       END DO
-      !! Array version !!
-!      VNS(1:MI1,1,2:NK2) = SQRT(0.5*(VNS(1:MI1,1,2:NK2)+ABS(VNS(1:MI1,1,2:NK2))))
-!      UPI_m(1:MI1,mjm:mjp,2:NK2)   = 0.5*(TEMPI_m(1:MI1,mjm:mjp,2:NK2)+ABS(TEMPI_m(1:MI1,mjm:mjp,2:NK2)))
-!      UMI_m(1:MI1,mjm:mjp,2:NK2)   = 0.5*(TEMPI_m(1:MI1,mjm:mjp,2:NK2)-ABS(TEMPI_m(1:MI1,mjm:mjp,2:NK2)))
-!      UPSRI_m(1:MI1,mjm:mjp,2:NK2) = SQRT(UPI_m(1:MI1,mjm:mjp,2:NK2))
-!      UMSRI_m(1:MI1,mjm:mjp,2:NK2) = SQRT(ABS(UMI_m(1:MI1,mjm:mjp,2:NK2)))
 
       !$acc parallel loop collapse(2) async(2)
       DO K=2,NK2
@@ -155,7 +138,7 @@ CONTAINS
       J = 0 
       FLXI_m(I,J,K)=TEMPI_m(I,J,K)*(Q(I,J+1,K)+Q(I,J,K))       &
        -ALADV*(UPI_m(I,J,K)*(Q(I,J+1,K)-Q(I,J,K))          &
-       -UPSRI_m(I,J,K)*VNS(I,1,K)*(Q(I,J,K)-QNS(I,1,K))  &
+       -UPSRI_m(I,J,K)*VNS_temp(I,1,K)*(Q(I,J,K)-QNS(I,1,K))  &
        +UMI_m(I,J,K)*(Q(I,J,K)-Q(I,J+1,K))                 &
        +UMSRI_m(I,J,K)*UMSRI_m(I,J+1,K)*(Q(I,J+1,K)-Q(I,J+2,K)))/3.
       !$acc loop

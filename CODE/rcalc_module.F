@@ -65,49 +65,54 @@ CONTAINS
 
       call nvtxStartRange('advection')
       call timer_start('advection')
-      !$acc data copyin(rhou, fnu, rhoz, itypew, u3dy, w3d, u3dx) create(TH3D, FTH3D(:,:,:,L), THew, THns, QV3D, FQV3D(:,:,:,L), QVew, QVns, QR3D, FQR3D(:,:,:,L), QRew, QRns) &
-      !$acc create(QC3D, FQC3D(:,:,:,L), QCew, QCns, QI3D, FQI3D(:,:,:,L), QIew, QIns, NC3D,  FNC3D(:,:,:,L), NCew, NCns, NR3D, FNR3D(:,:,:,L), NRew, NRns) & 
-      !$acc create(NI3D, FNI3D(:,:,:,L), NIew, NIns, QRIM3D, FQRIM3D(:,:,:,L), QRIMew, QRIMns, BRIM3D, FBRIM3D(:,:,:,L), BRIMew, BRIMns, QS3D, FQS3D(:,:,:,L), QSew, QSns) &
-      !$acc create(TC3D, FTC3D(:,:,:,L), TCew, TCns, CHEM3D, FCHEM3D(:,:,:,L), CHEMew, CHEMns, uew, vns)
+      !$acc data copyin(rhou, fnu, rhoz, itypew, u3dy, w3d, u3dx, TH3D, QV3D, QR3D, QC3D, QI3D, NC3D, NR3D, NI3D, QRIM3D, BRIM3D, QS3D, TC3D(:,:,:,1:ntracer), CHEM3D(:,:,:,1:nchem)) &
+      !$acc create(FTH3D(:,:,:,L), FQV3D(:,:,:,L), FQR3D(:,:,:,L), FQC3D(:,:,:,L), FQI3D(:,:,:,L), FNC3D(:,:,:,L), FNR3D(:,:,:,L), FNI3D(:,:,:,L), FQRIM3D(:,:,:,L), FBRIM3D(:,:,:,L), FQS3D(:,:,:,L), FTC3D(:,:,:,L,1:ntracer), FCHEM3D(:,:,:,L,1:nchem)) &
+      !$acc create(THew, THns, QVew, QVns, QRew, QRns, QCew, QCns, QIew, QIns, NCew, NCns, NRew, NRns, NIew, NIns, QRIMew, QRIMns, BRIMew, BRIMns, QSew, QSns, TCew, TCns, CHEMew, CHEMns, uew, vns)
       
       ! pass in 3D array and call extend_ne here
-      !$acc update device(TH3D)
       call extend_ne(nk3, TH3D, THew, THns, U3DX, uew, U3DY, vns)
+      !$acc update device(THew, THns, uew, vns)
 #if defined (PHYSICS)
-      !$acc update device(QV3D)
       call extend_ne(nk3, QV3D, QVew, QVns, U3DX, uew, U3DY, vns)
-      !$acc update device(QR3D)
+      !$acc update device(QVew, QVns)
       call extend_ne(nk3, QR3D, QRew, QRns, U3DX, uew, U3DY, vns)
-      !$acc update device(QC3D)
+      !$acc update device(QRew, QRns)
       call extend_ne(nk3, QC3D, QCew, QCns, U3DX, uew, U3DY, vns)
-      !$acc update device(QI3D)
+      !$acc update device(QCew, QCns)
       call extend_ne(nk3, QI3D, QIew, QIns, U3DX, uew, U3DY, vns)
+      !$acc update device(QIew, QIns)
 
 #if defined (MICROP3)
-      !$acc update device(NC3D)
       call extend_ne(nk3, NC3D, NCew, NCns, U3DX, uew, U3DY, vns)
-      !$acc update device(NR3D)
+      !$acc update device(NCew, NCns)
       call extend_ne(nk3, NR3D, NRew, NRns, U3DX, uew, U3DY, vns)
-      !$acc update device(NI3D)
+      !$acc update device(NRew, NRns)
       call extend_ne(nk3, NI3D, NIew, NIns, U3DX, uew, U3DY, vns)
-      !$acc update device(QRIM3D)
+      !$acc update device(NIew, NIns)
       call extend_ne(nk3, QRIM3D, QRIMew, QRIMns, U3DX, uew, U3DY, vns)
-      !$acc update device(BRIM3D)
+      !$acc update device(QRIMew, QRIMns)
       call extend_ne(nk3, BRIM3D, BRIMew, BRIMns, U3DX, uew, U3DY, vns)
-!      !$acc update device(QS3D)
-!      call extend_ne(nk3, QS3D, QSew, QSns, U3DX, uew, U3DY, vns)
+      !$acc update device(BRIMew, BRIMns)
+#if defined (LIQFRACP3)
+      call extend_ne(nk3, QILIQ3D, QILIQew, QILIQns, U3DX, uew, U3DY, vns)
+      !$acc update device(QILIQew, QILIQns)
+#endif
+#else
+
+      call extend_ne(nk3, QS3D, QSew, QSns, U3DX, uew, U3DY, vns)
+      !$acc update device(QSew, QSns)
 #endif
       if (ntracer > 0)then
          do nt = 1,ntracer
-            !$acc update device(TC3D(:,:,:,nt))
             call extend_ne(nk3, TC3D(mim,mjm,1,nt), TCew(:,:,:,nt), TCns(:,:,:,nt), U3DX, uew, U3DY, vns)
+            !$acc update device(TCew(:,:,:,nt), TCns(:,:,:,nt))
          enddo
       endif
 
 #if defined (CHEM)
          do nt = 1,nchem
-            !$acc update device(CHEM3D(:,:,:,nt))
             CALL extend_ne(nk3, CHEM3D(mim,mjm,1,nt), CHEMew(:,:,:,nt), CHEMns(:,:,:,nt), U3DX, uew, U3DY, vns)
+            !$acc update device(CHEMew(:,:,:,nt), CHEMns(:,:,:,nt))
          enddo
 #endif
 #endif
@@ -169,6 +174,7 @@ CONTAINS
 
 
 #endif
+      !$acc update self(FTH3D(:,:,:,L), FQV3D(:,:,:,L), FQR3D(:,:,:,L), FQC3D(:,:,:,L), FQI3D(:,:,:,L), FNC3D(:,:,:,L), FNR3D(:,:,:,L), FNI3D(:,:,:,L), FQRIM3D(:,:,:,L), FBRIM3D(:,:,:,L), FQS3D(:,:,:,L), FTC3D(:,:,:,L,1:ntracer), FCHEM3D(:,:,:,L,1:nchem))
       !$acc end data
       call timer_stop('advection')
       call nvtxEndRange
