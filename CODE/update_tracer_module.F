@@ -32,10 +32,10 @@ CONTAINS
       INTEGER (KIND=int_kind) ::   &
          i, j, k ,nt ! do loop indices for zonal, meridional and vertical dimensions
 
-!! !  Initialize tracer
-!!       IF (ntracer > 0) THEN
-!!         TC3D(:,:,:,:) = 0.
-!!       ENDIF
+!  Initialize tracer
+      IF (ntracer > 0) THEN
+        TC3D(:,:,:,:) = 0.
+      ENDIF
 
    END SUBROUTINE update_tracer_init
 
@@ -61,9 +61,12 @@ CONTAINS
       use pnetcdf
 
       INTEGER (KIND=int_kind) ::   &
-         i, j, k,t, hr, tempim, tempjm, idxkm
+         i, j, k,t, hr, tempim, tempjm
+      INTEGER (KIND=int_kind) ::   &
+         idx0m, idx750m, idx1500m
       ! do loop indices for zonal, meridional and vertical dimensions
       REAL xday, xhr, xlon, xlat, sza, coszen
+      REAL :: TCtpp
 
       !current time
       xday = rjday
@@ -74,43 +77,70 @@ CONTAINS
       sza = getth(xday,xlat,xlon,xhr)
       coszen = max(0.0,cos(sza)) !to avoid negative values
 
-!!        ! source
-!!        IF (ntracer>0) THEN
-!!        DO 988 J = mjm, mjp
-!!        DO 988 I = mim, mip
-!!          tempim = mi1*ni_sbdm+i
-!!          tempjm = mj1*nj_sbdm+j
-!!          IF ( (tempim .EQ. INT(mi_glob/2)+1) .and. &
-!!               (tempjm .EQ. INT(mj_glob/2)  ) &
-!!             ) THEN
-!!  
-!!               TC3D(I,J,1,1) = TC3D(I,J,1,1) + &
-!!                                      0.1  * Pass_small_dt  ! tracer
-!!          ENDIF
-!!          
-!!   988 ENDDO
-!!       ENDIF
+      ! find specific height
+      idx0m    = 2
+      idx750m  = MINLOC(ABS(ZT-750.), 1)
+      idx1500m = MINLOC(ABS(ZT-1500.), 1)
 
+      !!!  ! emssion data [MT/yr]
+      !!!  ! change unit (MT/yr -> kg/yr -> kg/s)
+      !!!  ! change unit 2 (kg/s -> kg/m^3/s -> ug/m^3/s -> ppb/s)
 
-!!        ! remove around the boundaries
-!!        DO j = mjm, mjp
-!!        DO i = mim, mip
-!!          tempim = mi1*ni_sbdm+i
-!!          tempjm = mj1*nj_sbdm+j
-!!          IF ( tempim .EQ. INT(mi_glob/4) ) THEN
-!!            TC3D(i,j,:,:) = 0.
-!!          ENDIF
-!!          IF ( tempim .EQ. INT(mi_glob/4)+1 ) THEN
-!!            TC3D(i,j,:,:) = 0.
-!!          ENDIF
-!!          IF ( tempim .EQ. INT(mi_glob/4)-1 ) THEN
-!!            TC3D(i,j,:,:) = 0.
-!!          ENDIF
-!!  
-!!        ENDDO
-!!        ENDDO
+      !!!  TCtpp = 9843.575 ! NOx
+      !!!  TCtpp = TCtpp * 1000. / 365. / 86400.
+      !!!  TCtpp = TCtpp / DX / DYNEW / (DZ/FNT(idx300m)) * 1e9 / 1.25
 
-     call bound_3d
+      ! emission [ppb/s]
+      TCtpp = 1.
+
+      ! source
+      DO J = mjm, mjp
+      DO I = mim, mip
+        tempim = mi1*ni_sbdm+i
+        tempjm = mj1*nj_sbdm+j
+        IF ( ( tempim .EQ. INT(mi_glob*1./4.) ) .and. &
+             ( tempjm .EQ. INT(mj_glob*1./2.) ) &
+           ) THEN
+             TC3D(I,J,idx0m,1)    = TC3D(I,J,  idx0m,1) + &
+                                     TCtpp * Pass_small_dt  ! tracer 1
+             TC3D(I,J,idx750m,2)  = TC3D(I,J,idx750m,2) + &
+                                     TCtpp * Pass_small_dt  ! tracer 2
+             TC3D(I,J,idx1500m,3) = TC3D(I,J,idx1500m,3) + &
+                                     TCtpp * Pass_small_dt  ! tracer 3
+        ENDIF
+
+        IF ( ( tempim .EQ. INT(mi_glob*3./4.) ) .and. &
+             ( tempjm .EQ. INT(mj_glob*1./2.) ) &
+           ) THEN
+             TC3D(I,J,idx0m,4)    = TC3D(I,J,  idx0m,4) + &
+                                     TCtpp * Pass_small_dt  ! tracer 1
+             TC3D(I,J,idx750m,5)  = TC3D(I,J,idx750m,5) + &
+                                     TCtpp * Pass_small_dt  ! tracer 2
+             TC3D(I,J,idx1500m,6) = TC3D(I,J,idx1500m,6) + &
+                                     TCtpp * Pass_small_dt  ! tracer 3
+        ENDIF
+    ENDDO
+    ENDDO
+
+!!!! !!        ! remove around the boundaries
+!!!! !!        DO j = mjm, mjp
+!!!! !!        DO i = mim, mip
+!!!! !!          tempim = mi1*ni_sbdm+i
+!!!! !!          tempjm = mj1*nj_sbdm+j
+!!!! !!          IF ( tempim .EQ. INT(mi_glob/4) ) THEN
+!!!! !!            TC3D(i,j,:,:) = 0.
+!!!! !!          ENDIF
+!!!! !!          IF ( tempim .EQ. INT(mi_glob/4)+1 ) THEN
+!!!! !!            TC3D(i,j,:,:) = 0.
+!!!! !!          ENDIF
+!!!! !!          IF ( tempim .EQ. INT(mi_glob/4)-1 ) THEN
+!!!! !!            TC3D(i,j,:,:) = 0.
+!!!! !!          ENDIF
+!!!! !!  
+!!!! !!        ENDDO
+!!!! !!        ENDDO
+!!!! 
+      call bound_3d
 
    END SUBROUTINE update_tracer_source
 !c

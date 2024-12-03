@@ -7,6 +7,8 @@ USE const3d
 USE profoutld
 USE bound
 USE domain_decomposition
+USE nvtx
+
 
 IMPLICIT NONE
 PRIVATE
@@ -43,13 +45,22 @@ CONTAINS
 
       call extend_ne(nk3,q,qew,qns,u3dx,uew,u3dy,vns)
 
+      call nvtxStartRange("Zonal Loop time test (1)")
 !     Zonal advection
-      DO 320 K = 2, NK2
-      DO 320 J = 1, MJ1
+      !$acc parallel
+      !$acc loop collapse(2)
+      DO  K = 2, NK2
+      DO  J = 1, MJ1
       UEW(1,J,K) = UEW(1,J,K)*RHOU(K) ! use for u(-1,J,K) =uew(1,J,K)
-      DO 320 I=mim,mip
+      !$acc loop
+      DO  I=mim,mip
       TEMPI(I,J,K)=U3DX(I,J,K)*RHOU(K)
-  320 CONTINUE
+      ENDDO
+      ENDDO
+      ENDDO
+      !$acc end parallel
+      call nvtxEndRange
+
 
       DO 330 K=2,NK2
       DO 330 J=1,MJ1

@@ -20,17 +20,17 @@ PRIVATE
     ! Global size of domain
     ! These lines will be preprocessed by sed
     INTEGER(KIND=int_kind),PARAMETER, PUBLIC :: &
-        MI_glob = zonal_dimension,      &  ! the zonal domain size (no halo points)
-        MJ_glob = merid_dimension,      &  ! the meridional domain size (no halo points)
-        NK2 = vert_dimension ,          &  ! the vertical domain size
+        MI_glob = 128,      &  ! the zonal domain size (no halo points)
+        MJ_glob = 128,      &  ! the meridional domain size (no halo points)
+        NK2 = 50 ,          &  ! the vertical domain size
 #if defined (DIAG)
-        ndiag_2d = diag2d_dimension ,   &  ! the number for 2d diagnostics
-        ndiag_3d = diag3d_dimension ,   &  ! the number for 3d diagnostics
+        ndiag_2d = 0 ,   &  ! the number for 2d diagnostics
+        ndiag_3d = 0 ,   &  ! the number for 3d diagnostics
 #endif
 #if defined (CHEM)
-        nchem = chemical_dimension ,   &  ! the number for 2d diagnostics
+        nchem = 22 ,   &  ! the number for 2d diagnostics
 #endif
-        ntracer = tracer_dimension         ! the number of passive tracers
+        ntracer = 6         ! the number of passive tracers
       
     ! Define the depth of the halo region, later will preprocess depending on operator order
     INTEGER(KIND=int_kind),PARAMETER, PUBLIC :: &
@@ -42,8 +42,8 @@ PRIVATE
 #if defined (MPI)
     ! These lines will be preprocessed by sed
     INTEGER (KIND=int_kind), PARAMETER, PUBLIC ::  &
-        nsbdm_x = zonal_decomposition,      &  ! number of subdomains in zonal direction
-        nsbdm_y = merid_decomposition,      &  ! number of subdomains in meridional direction
+        nsbdm_x = 2,      &  ! number of subdomains in zonal direction
+        nsbdm_y = 2,      &  ! number of subdomains in meridional direction
         ntasks = nsbdm_x * nsbdm_y             ! number of mpi tasks = number of subdomains
    
     ! The global domain is divided into subdomains of equal size (There may be overlap)

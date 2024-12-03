@@ -8,7 +8,9 @@ USE workcom
 USE const3d
 USE utils
 USE bound
-use domain_decomposition, only : my_task
+use domain_decomposition, only : my_task, &
+                                 nj_sbdm, &
+                                 ni_sbdm
 
 IMPLICIT NONE
 PRIVATE
@@ -23,6 +25,7 @@ PUBLIC :: &
 
 CONTAINS
   SUBROUTINE USER_set_mean_profile_and_SST
+      IMPLICIT NONE
       !! --------------------
       !! Object of this function give the MEAN profile at model levels
       !! using the template subrountine.
@@ -36,29 +39,64 @@ CONTAINS
       !! UG(NK3)    [m/s],   VG(NK3)    [m/s]
       !! --------------------
 
-      SST=300.
+      INTEGER (KIND=int_kind), PARAMETER :: NT1=2
+      REAL (KIND=dbl_kind) :: P1(NT1),  T1(NT1),  QV1(NT1), U1(NT1), V1(NT1)
+      REAL (KIND=dbl_kind) :: TH1(NT1), RH1(NT1)
+      REAL (KIND=dbl_kind) :: es1
+      INTEGER              :: k
 
-      PBAR=0.
-      PIBAR=0.
-      THBAR=0.
-      QVBAR=0.
-      RHO=0.
-      RHOZ=0.
+      DATA P1  /1000., 780./
+      DATA RH1  / 80.,  80./
+      DATA TH1  /294., 310./
+      !!!DATA TH1  /294., 316./
+      DATA U1  /   0.,   0./
+      DATA V1  /   0.,   0./
+      P1(:)  = P1(:)*100.
+      RH1(:) = RH1(:) / 100.
+     
+      DO k = 1, NT1
+        T1(k) = TH1(k)*( P1(k) / 100000. )**0.286
+        ES1 = ES ( T1(K) )
+        QV1(K) = ES1 * 0.622 / ( P1(K) - ES1 ) * RH1(k)
+        WRITE(*,'(5F)') P1(k), RH1(K), TH1(k), T1(k), qv1(k)
+      ENDDO
 
-      Q1LS=0.
-      Q2LS=0.
-      WLS=0.
+      ! interpolate thermoaldynamics profile
+      ! SET PBAR(NK3)  [Pa],     PIBAR(NK3)
+      ! SET THBAR(NK3) [K],      QVBAR(NK3)[kg/kg]
+      ! SET RHO(NK3)   [kg/m3],  RHOZ(NK3) [kg/m3]
 
-      UG=0.
-      VG=0.
+      CALL USER_interpolate_thermoal_profile( &
+           NT1, P1, T1, QV1 &
+           )
+
+      ! interpolate dynamics profile
+      ! SET UG(NK3)[m/s], VG(NK3)[m/s]
+
+      CALL USER_interpolate_wind_profile( &
+           NT1, P1, U1, V1 &
+           )
+
+
+      ! interpolate large-scale profile
+      !!  ! SET Q1LS(NK3)[K/s], Q2LS(NK3)[g/g/s], WLS(NK3) [m/s]
+
+      !!  CALL USER_interpolate_largescale_profile( &
+      !!       NQ1, PQ1, Q1OBS, Q2OBS, WLS1 &
+      !!       )
+
+      WLS(:)    = 0.
+      Q1LS(:)   = 0.
+      Q2LS(:)   = 0.
+      SST       = T1(1)
   
   ENDSUBROUTINE USER_set_mean_profile_and_SST
 
-
-  ENDSUBROUTINE USER_set_3D_perturbation
+  SUBROUTINE USER_set_3D_perturbation
+      IMPLICIT NONE
       !! --------------------
       !! this subroutine can modify the 3D fields after
-      !! setting mean_profile. if you dont's want to add
+      !! setting mean_profile. if you don't want to add
       !! additional perturbation, just set continue and 
       !! skip it.
 
@@ -88,11 +126,11 @@ CONTAINS
       !! mjm = 1 - nhalo       ! starting meridional index
       !! mjp = mj1 + nhalo     ! ending meridional index
       !! --------------------
-
+      
       continue
 
-  ENDSUBROUTINE USER_set_3D_perturbation
 
+  ENDSUBROUTINE USER_set_3D_perturbation
  
   SUBROUTINE USER_set_start_time(iyear0, imonth0, iday0, hour0)
       !! --------------------
@@ -105,11 +143,11 @@ CONTAINS
       REAL (KIND=dbl_kind), INTENT(out)    ::  &
          hour0
   
-      iyear0 = 2019
-      imonth0 = 1
-      iday0 = 18
+      iyear0 = 2023
+      imonth0 = 12
+      iday0 = 31 
 ! Specify hour in fractional UTC time (Greenwich)
-      hour0 = 22.0 !06(UTC+8)
+      hour0 = 21.
   ENDSUBROUTINE USER_set_start_time
 
   SUBROUTINE USER_set_topography_and_land_type(&
@@ -123,23 +161,60 @@ CONTAINS
       !! --
       !! if taiwanvvm_flag is .False., prescibe idealized 
       !! land surface data through routput_user and ioutput_user.
+      !! --
+      !! Please follow ./CODE/create_topo.F manual
       !! --------------------
       integer(kind=int_kind), dimension(mi_glob,mj_glob,3), intent(out) :: ioutput_user
       real(kind=dbl_kind),    dimension(mi_glob,mj_glob,6), intent(out) :: routput_user
       logical, intent(out) :: taiwanvvm_flag
 
-      taiwanvvm_flag = .False.
+      integer :: i, j, k
 
-      ! initialization with ocean
-      routput_user(:,:,1)=0.   ! height (m)
-      routput_user(:,:,2)=8.   ! albedo (%)
-      routput_user(:,:,3)=0.   ! green vegetation fraction (%)
-      routput_user(:,:,4)=0.   ! leaf area index (m^2/m^2)
-      routput_user(:,:,5)=0.   ! max. GVF (%)
-      routput_user(:,:,6)=0.   ! min. GVF (%)
-      ioutput_user(:,:,1)=16   ! land type 
-      ioutput_user(:,:,2)=0    ! slope type
-      ioutput_user(:,:,3)=14   ! soil type
+      taiwanvvm_flag = .False.
+      DO i = 1, INT(mi_glob/2)
+          routput_user(i,:,1)=0.   ! height (m)
+          routput_user(i,:,2)=30.  ! albedo (%)
+          routput_user(i,:,3)=0.  ! green vegetation fraction (%)
+          routput_user(i,:,4)=0.   ! leaf area index (m^2/m^2)
+          routput_user(i,:,5)=0.   ! max. GVF (%)
+          routput_user(i,:,6)=0.   ! min. GVF (%)
+          ioutput_user(i,:,1)=16    ! land type 
+          ioutput_user(i,:,2)=0    ! slope type
+          ioutput_user(i,:,3)=0    ! soil type
+      ENDDO
+
+      DO i = INT(mi_glob/2), mi_glob
+          routput_user(i,:,1)=0.   ! height (m)
+          routput_user(i,:,2)=15.   ! albedo (%)
+          routput_user(i,:,3)=10.   ! green vegetation fraction (%)
+          routput_user(i,:,4)=4.   ! leaf area index (m^2/m^2)
+          routput_user(i,:,5)=10.   ! max. GVF (%)
+          routput_user(i,:,6)=10.   ! min. GVF (%)
+          ioutput_user(i,:,1)=2    ! land type
+          ioutput_user(i,:,2)=1    ! slope type
+          ioutput_user(i,:,3)=1    ! soil type
+      ENDDO
+
+      !!!  ! initialization with Urban
+      !!!  routput_user(:,:,1)=0.    ! height (m)
+      !!!  routput_user(:,:,2)=15.   ! albedo (%)
+      !!!  routput_user(:,:,3)=10.   ! green vegetation fraction (%)
+      !!!  routput_user(:,:,4)=1.    ! leaf area index (m^2/m^2)
+      !!!  routput_user(:,:,5)=10.   ! max. GVF (%)
+      !!!  routput_user(:,:,6)=10.   ! min. GVF (%)
+      !!!  ioutput_user(:,:,1)=1     ! land type 
+      !!!  ioutput_user(:,:,2)=1     ! slope type
+      !!!  ioutput_user(:,:,3)=13    ! soil type
+
+      !!!  !evergreen broadleaf forest
+      !!!  routput_user(:,:,2)=12.   ! albedo (%)
+      !!!  routput_user(:,:,3)=95.   ! green vegetation fraction (%)
+      !!!  routput_user(:,:,4)=6.48  ! leaf area index (m^2/m^2)
+      !!!  routput_user(:,:,5)=95.   ! max. GVF (%)
+      !!!  routput_user(:,:,6)=95.   ! min. GVF (%)
+      !!!  ioutput_user(:,:,1)=13    ! land type 
+      !!!  ioutput_user(:,:,2)=1     ! slope type
+      !!!  ioutput_user(:,:,3)=13    ! soil type
 
   ENDSUBROUTINE USER_set_topography_and_land_type
 
@@ -159,7 +234,7 @@ CONTAINS
   SUBROUTINE USER_set_vertical_coordinate
       IMPLICIT NONE
       !! --------------------
-      !! This vertical coordinate setting is for stretching grid
+      !! stretching vertical coordinate
       !! --------------------
 
       INTEGER (KIND=int_kind) :: k,kk,kt,kt1  ! vertical loop index
@@ -192,6 +267,7 @@ CONTAINS
       FNT(K) = 1. / ( CZ1 + 2. * CZ2 * ZT(K) )
       ZT(K) = ZT(K) * ( CZ1 + CZ2 * ZT(K) )
    50 CONTINUE
+
 
   ENDSUBROUTINE USER_set_vertical_coordinate
  
@@ -470,49 +546,6 @@ CONTAINS
       RHO(K) = 1. / ALPHA(K)
   190 CONTINUE
 
-
   ENDSUBROUTINE  USER_interpolate_thermoal_profile
   
-  SUBROUTINE USER_TPE_sounding
-       IMPLICIT NONE
-!ccwu Taipei TSA sounding
-
-!      do  K = 1, NK3
-!      IF (ZT(K) .LT. 3000.) THEN
-!        THBAR(K) = 298.13 + 5.2E-3 * ZT(K)
-!      ELSEIF (ZT(K) .LT. 8000.) THEN
-!        THBAR(K) = THBAR(K-1)+4.7E-3*(ZT(K)-ZT(K-1))
-!      ELSEIF (ZT(K) .LT. 13000.) THEN
-!        THBAR(K) = THBAR(K-1)+3.4E-3*(ZT(K)-ZT(K-1))
-!      ELSE
-!        THBAR(K) = THBAR(K-1)+10.9E-3*(ZT(K)-ZT(K-1))
-!      ENDIF
-
-!      T(K) = THBAR(K) * PIBAR(K)
-!      ESW = 611.2*EXP(17.67*(T(K)-273.15)/(T(K)-29.65))
-!      ESI = 611.2*EXP(21.8745584*(T(K)-273.15)/(T(K)-7.66))
-!      IF (T(K) .LE. 233.15) THEN
-!        ES1 = ESI
-!      ELSE IF (T(K) .LT. 273.15) THEN
-!        ES1 = ( ESI*(273.15-T(K)) + ESW*(T(K)-233.15) )/40.0
-!      ELSE
-!        ES1 = ESW
-!      ENDIF
-!      QVSBAR(K) = ES1 * 0.622 / ( PBAR(K) - ES1 )
-!CCCCCCCCCCCCCCCCCC
-!      IF (ZT(K) .LE. 1500) THEN
-!        H(K) = 0.82
-!      ELSE IF (ZT(K) .LE. 12000) THEN
-!        H(K) = (ZT(K)-8000)**2/132031250.+0.5
-!      ELSE
-!        H(K) = 0.50
-!      END IF
-!CCCCCCCCCCCCCCCCCC
-!      QVBAR(K) = H(K) * QVSBAR(K)
-
-!      ENDDO
-
-  ENDSUBROUTINE USER_TPE_sounding
-
-
 ENDMODULE user_module
