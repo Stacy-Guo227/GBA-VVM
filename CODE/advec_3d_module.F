@@ -51,9 +51,8 @@ CONTAINS
       !$acc data present(U3DX,U3DY,W3D,ITYPEW,FNU,RHOU,RHOZ) create(TEMPI,UPI,UMI,UPSRI,UMSRI,FLXI) copyin(UEW,Q,QEW,VNS,QNS) copyout(terma)
 
       !$acc parallel
-      !$acc loop
+      !$acc loop collapse (2)
       DO  K = 2, NK2
-      !$acc loop
       DO  J = 1, MJ1
       UEW(1,J,K) = UEW(1,J,K)*RHOU(K) ! use for u(-1,J,K) =uew(1,J,K)
       UEW(1,J,K) = 0.5*(UEW(1,J,K)+ABS(UEW(1,J,K)))
@@ -77,9 +76,8 @@ CONTAINS
 !      call nvtxStartRange("Zonal Loop time test (4)")
 !     loop(4) 340
       !$acc parallel
-      !$acc loop
+      !$acc loop collapse (2)
       DO  K=2,NK2
-      !$acc loop
       DO  J=1,MJ1
       I = 0
       FLXI(I,J,K)=TEMPI(I,J,K)*(Q(I+1,J,K)+Q(I,J,K))     &
@@ -110,11 +108,9 @@ CONTAINS
 !      call nvtxStartRange("Zonal Loop time test (5)")
 !     loop(5) 350
       !$acc parallel
-      !$acc loop
+      !$acc loop collapse (3)
       DO  K=2,NK2
-      !$acc loop
       DO  J=1,MJ1
-      !$acc loop
       DO  I=1,MI1
       terma(I,J,K)=-(FLXI(I,J,K)-FLXI(I-1,J,K))/(2.*DX)
       ENDDO
@@ -129,9 +125,8 @@ CONTAINS
 !      call nvtxStartRange("Zonal Loop time test (6)")
 !     loop(6) 420
       !$acc parallel
-      !$acc loop 
+      !$acc loop collapse (2)
       DO  K = 2, NK2
-      !$acc loop
       DO  I = 1,MI1
       VNS(I,1,K) = RHOU(K)*VNS(I,1,K)
       VNS(I,1,K) = 0.5*(VNS(I,1,K)+ABS(VNS(I,1,K)))
@@ -157,9 +152,8 @@ CONTAINS
 !      call nvtxStartRange("Zonal Loop time test (9)")
 !     loop(9) 440
       !$acc parallel
-      !$acc loop
+      !$acc loop collapse (2)
       DO  K=2,NK2
-      !$acc loop
       DO  I=1,MI1
       J = 0 
       FLXI(I,J,K)=TEMPI(I,J,K)*(Q(I,J+1,K)+Q(I,J,K))       &
@@ -190,11 +184,9 @@ CONTAINS
 !      call nvtxStartRange("Zonal Loop time test (10)")
 !     loop(10) 450
       !$acc parallel
-      !$acc loop
+      !$acc loop collapse (3)
       DO  K=2,NK2
-      !$acc loop
       DO  J=1,MJ1
-      !$acc loop
       DO  I=1,MI1
       terma(I,J,K)=terma(I,J,K)-(FLXI(I,J,K)-FLXI(I,J-1,K))/(2.*DYNEW)
       ENDDO
@@ -207,11 +199,9 @@ CONTAINS
 !      call nvtxStartRange("Zonal Loop time test (11)")
 !     loop(11) 520
       !$acc parallel
-      !$acc loop
+      !$acc loop collapse (3)
       DO  K=2,NK1
-      !$acc loop
       DO  J=1,MJ1
-      !$acc loop
       DO  I=1,MI1
       TEMPI(I,J,K)=W3D(I,J,K)*RHOZ(K)
       UPI(I,J,K)=0.5*(TEMPI(I,J,K)+ABS(TEMPI(I,J,K)))
@@ -229,11 +219,9 @@ CONTAINS
 !      call nvtxStartRange("Zonal Loop time test (14)")
 !     loop(14) 540
       !$acc parallel
-      !$acc loop
+      !$acc loop collapse (3)
       DO  K=3,NK1-1
-      !$acc loop
       DO  J=1,MJ1
-      !$acc loop
       DO  I=1,MI1
       FLXI(I,J,K)=TEMPI(I,J,K)*(Q(I,J,K+1)+Q(I,J,K))       &
        -ALADV*(UPI(I,J,K)*(Q(I,J,K+1)-Q(I,J,K))          &
@@ -249,9 +237,8 @@ CONTAINS
 !      call nvtxStartRange("Zonal Loop time test (15)")
 !     loop(15) 545
       !$acc parallel
-      !$acc loop
+      !$acc loop collapse (2)
       DO  J=1,MJ1
-      !$acc loop
       DO  I=1,MI1
       IF(TEMPI(I,J,NK1).GE.0.) THEN
          FLXI(I,J,NK1)=TEMPI(I,J,NK1)*(Q(I,J,NK2)+Q(I,J,NK1))   &
@@ -276,9 +263,8 @@ CONTAINS
 !      call nvtxStartRange("Zonal Loop time test (16)")
 !     loop(16) 547
       !$acc parallel
-      !$acc loop
+      !$acc loop collapse (2)
       DO  J=1,MJ1
-      !$acc loop
       DO  I=1,MI1
       FLXI(I,J, 1)= 0.
       FLXI(I,J,NK2)= 0.
@@ -290,11 +276,9 @@ CONTAINS
 !      call nvtxStartRange("Zonal Loop time test (17)")
 !     loop(17) 550
       !$acc parallel
-      !$acc loop
+      !$acc loop collapse (3)
       DO  K=2,NK2
-      !$acc loop
       DO  J=1,MJ1
-      !$acc loop
       DO  I=1,MI1
       terma(I,J,K)=terma(I,J,K)-(FLXI(I,J,K)-FLXI(I,J,K-1))*FNU(K)/(2.*DZ)
       terma(I,J,K)=terma(I,J,K)/RHOU(K)
@@ -311,11 +295,9 @@ CONTAINS
 !      call nvtxStartRange("Zonal Loop time test (19)")
 !     loop(19)
       !$acc parallel
-      !$acc loop
+      !$acc loop collapse (3)
       DO K=2,maxtopo
-      !$acc loop
       DO J=1,MJ1
-      !$acc loop
       DO I=1,MI1
       IF(ITYPEW(I,J,K) .NE. 1) THEN
       terma(I,J,K)=0.

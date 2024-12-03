@@ -20,8 +20,8 @@ PRIVATE
     ! Global size of domain
     ! These lines will be preprocessed by sed
     INTEGER(KIND=int_kind),PARAMETER, PUBLIC :: &
-        MI_glob = 256,      &  ! the zonal domain size (no halo points)
-        MJ_glob = 256,      &  ! the meridional domain size (no halo points)
+        MI_glob = 128,      &  ! the zonal domain size (no halo points)
+        MJ_glob = 128,      &  ! the meridional domain size (no halo points)
         NK2 = 50 ,          &  ! the vertical domain size
 #if defined (DIAG)
         ndiag_2d = 0 ,   &  ! the number for 2d diagnostics
