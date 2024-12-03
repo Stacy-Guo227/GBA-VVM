@@ -48,8 +48,9 @@ CONTAINS
       call nvtxStartRange("Zonal Loop time test (1)")
 !     Zonal advection
       !$acc parallel
-      !$acc loop collapse(2)
+      !$acc loop
       DO  K = 2, NK2
+      !$acc loop
       DO  J = 1, MJ1
       UEW(1,J,K) = UEW(1,J,K)*RHOU(K) ! use for u(-1,J,K) =uew(1,J,K)
       !$acc loop
@@ -60,7 +61,6 @@ CONTAINS
       ENDDO
       !$acc end parallel
       call nvtxEndRange
-
 
       DO 330 K=2,NK2
       DO 330 J=1,MJ1
@@ -231,7 +231,7 @@ CONTAINS
       DO 550 J=1,MJ1
       DO 550 I=1,MI1
       terma(I,J,K)=terma(I,J,K)-(FLXI(I,J,K)-FLXI(I,J,K-1))*FNU(K)/(2.*DZ)
-      termf(I,J,K)=-(FLXI(I,J,K)-FLXI(I,J,K-1))*FNU(K)/(2.*DZ)/RHOU(K)
+      !termf(I,J,K)=-(FLXI(I,J,K)-FLXI(I,J,K-1))*FNU(K)/(2.*DZ)/RHOU(K)
   550 CONTINUE
 
       DO 570 K=2,NK2
