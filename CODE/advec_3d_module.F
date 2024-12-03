@@ -32,11 +32,11 @@ CONTAINS
 
 ! local variables
       REAL (KIND=dbl_kind) :: &
-         TEMPI(mim:mip,mjm:mjp,NK2),UPI(mim:mip,mjm:mjp,NK2),UMI(mim:mip,mjm:mjp,NK2)
+         TEMPIZ(mim:mip,mjm:mjp,NK2),TEMPIM(mim:mip,mjm:mjp,NK2),TEMPIV(mim:mip,mjm:mjp,NK2),UPIZ(mim:mip,mjm:mjp,NK2),UPIM(mim:mip,mjm:mjp,NK2),UPIV(mim:mip,mjm:mjp,NK2),UMIZ(mim:mip,mjm:mjp,NK2),UMIM(mim:mip,mjm:mjp,NK2),UMIV(mim:mip,mjm:mjp,NK2)
       REAL (KIND=dbl_kind) :: &
-         UPSRI(mim:mip,mjm:mjp,NK2),UMSRI(mim:mip,mjm:mjp,NK2)
+         UPSRIZ(mim:mip,mjm:mjp,NK2),UPSRIM(mim:mip,mjm:mjp,NK2),UPSRIV(mim:mip,mjm:mjp,NK2),UMSRIZ(mim:mip,mjm:mjp,NK2),UMSRIM(mim:mip,mjm:mjp,NK2),UMSRIV(mim:mip,mjm:mjp,NK2)
       REAL (KIND=dbl_kind) :: &
-         FLXI(0:MI1,0:mj1,NK2)
+         FLXIZ(0:MI1,0:mj1,NK2),FLXIM(0:MI1,0:mj1,NK2),FLXIV(0:MI1,0:mj1,NK2)
       REAL (KIND=dbl_kind), DIMENSION(2,mjm:mjp,nk3) :: qew,uew  ! extended copy of q  ew
       REAL (KIND=dbl_kind), DIMENSION(mim:mip,2,nk3) :: qns,vns  ! extended copy of q  ns
 
@@ -48,9 +48,9 @@ CONTAINS
 !      call nvtxStartRange("Zonal Loop time test (1)")
 !     Zonal advection
 !     loop(1) 320
-      !$acc data present(U3DX,U3DY,W3D,ITYPEW,FNU,RHOU,RHOZ) create(TEMPI,UPI,UMI,UPSRI,UMSRI,FLXI) copyin(UEW,Q,QEW,VNS,QNS) copyout(terma)
+      !$acc data present(U3DX,U3DY,W3D,ITYPEW,FNU,RHOU,RHOZ) copyin(UEW,Q,QEW,VNS,QNS) copyout(terma) create(TEMPIZ,TEMPIM,TEMPIV,UPIZ,UPIM,UPIV,UMIZ,UMIM,UMIV,UPSRIZ,UPSRIM,UPSRIV,UMSRIZ,UMSRIM,UMSRIV,FLXIZ,FLXIM,FLXIV)
 
-      !$acc parallel
+      !$acc parallel async(0)
       !$acc loop collapse (2)
       DO  K = 2, NK2
       DO  J = 1, MJ1
@@ -59,72 +59,66 @@ CONTAINS
       UEW(1,J,K) = SQRT(UEW(1,J,K))
       !$acc loop
       DO  I=mim,mip
-      TEMPI(I,J,K)=U3DX(I,J,K)*RHOU(K)
-      UPI(I,J,K)=0.5*(TEMPI(I,J,K)+ABS(TEMPI(I,J,K)))
-      UMI(I,J,K)=0.5*(TEMPI(I,J,K)-ABS(TEMPI(I,J,K)))
-      UPSRI(I,J,K)=SQRT(UPI(I,J,K))
-      UMSRI(I,J,K)=SQRT(ABS(UMI(I,J,K)))
+      TEMPIZ(I,J,K)=U3DX(I,J,K)*RHOU(K)
+      UPIZ(I,J,K)=0.5*(TEMPIZ(I,J,K)+ABS(TEMPIZ(I,J,K)))
+      UMIZ(I,J,K)=0.5*(TEMPIZ(I,J,K)-ABS(TEMPIZ(I,J,K)))
+      UPSRIZ(I,J,K)=SQRT(UPIZ(I,J,K))
+      UMSRIZ(I,J,K)=SQRT(ABS(UMIZ(I,J,K)))
       ENDDO
       ENDDO
       ENDDO
       !$acc end parallel
-!     call nvtxEndRange
 
 !     loop(2) 330
 !     loop(3) 337
 
-!      call nvtxStartRange("Zonal Loop time test (4)")
 !     loop(4) 340
-      !$acc parallel
+      !$acc parallel async(0)
       !$acc loop collapse (2)
       DO  K=2,NK2
       DO  J=1,MJ1
       I = 0
-      FLXI(I,J,K)=TEMPI(I,J,K)*(Q(I+1,J,K)+Q(I,J,K))     &
-       -ALADV*(UPI(I,J,K)*(Q(I+1,J,K)-Q(I,J,K))         &
-       -UPSRI(I,J,K)*UEW(1,J,K)*(Q(I,J,K)-QEW(1,J,K)) &
-       +UMI(I,J,K)*(Q(I,J,K)-Q(I+1,J,K))                &
-       +UMSRI(I,J,K)*UMSRI(I+1,J,K)*(Q(I+1,J,K)-Q(I+2,J,K)))/3.
+      FLXIZ(I,J,K)=TEMPIZ(I,J,K)*(Q(I+1,J,K)+Q(I,J,K))     &
+       -ALADV*(UPIZ(I,J,K)*(Q(I+1,J,K)-Q(I,J,K))         &
+       -UPSRIZ(I,J,K)*UEW(1,J,K)*(Q(I,J,K)-QEW(1,J,K)) &
+       +UMIZ(I,J,K)*(Q(I,J,K)-Q(I+1,J,K))                &
+       +UMSRIZ(I,J,K)*UMSRIZ(I+1,J,K)*(Q(I+1,J,K)-Q(I+2,J,K)))/3.
 !     inner loop(1): calFLXI 341
       !$acc loop
       DO  I=1,MI1-1
-      FLXI(I,J,K)=TEMPI(I,J,K)*(Q(I+1,J,K)+Q(I,J,K))      &
-       -ALADV*(UPI(I,J,K)*(Q(I+1,J,K)-Q(I,J,K))         &
-       -UPSRI(I,J,K)*UPSRI(I-1,J,K)*(Q(I,J,K)-Q(I-1,J,K)) &
-       +UMI(I,J,K)*(Q(I,J,K)-Q(I+1,J,K))                &
-       +UMSRI(I,J,K)*UMSRI(I+1,J,K)*(Q(I+1,J,K)-Q(I+2,J,K)))/3.
+      FLXIZ(I,J,K)=TEMPIZ(I,J,K)*(Q(I+1,J,K)+Q(I,J,K))      &
+       -ALADV*(UPIZ(I,J,K)*(Q(I+1,J,K)-Q(I,J,K))         &
+       -UPSRIZ(I,J,K)*UPSRIZ(I-1,J,K)*(Q(I,J,K)-Q(I-1,J,K)) &
+       +UMIZ(I,J,K)*(Q(I,J,K)-Q(I+1,J,K))                &
+       +UMSRIZ(I,J,K)*UMSRIZ(I+1,J,K)*(Q(I+1,J,K)-Q(I+2,J,K)))/3.
       ENDDO
       I=MI1
-      FLXI(I,J,K)=TEMPI(I,J,K)*(Q(I+1,J,K)+Q(I,J,K))      &
-      -ALADV*(UPI(I,J,K)*(Q(I+1,J,K)-Q(I,J,K))         &
-      -UPSRI(I,J,K)*UPSRI(I-1,J,K)*(Q(I,J,K)-Q(I-1,J,K)) &
-       +UMI(I,J,K)*(Q(I,J,K)-Q(I+1,J,K))                &
-       +UMSRI(I,J,K)*UMSRI(I+1,J,K)*(Q(I+1,J,K)-QEW(2,J,K)))/3.
+      FLXIZ(I,J,K)=TEMPIZ(I,J,K)*(Q(I+1,J,K)+Q(I,J,K))      &
+      -ALADV*(UPIZ(I,J,K)*(Q(I+1,J,K)-Q(I,J,K))         &
+      -UPSRIZ(I,J,K)*UPSRIZ(I-1,J,K)*(Q(I,J,K)-Q(I-1,J,K)) &
+       +UMIZ(I,J,K)*(Q(I,J,K)-Q(I+1,J,K))                &
+       +UMSRIZ(I,J,K)*UMSRIZ(I+1,J,K)*(Q(I+1,J,K)-QEW(2,J,K)))/3.
       ENDDO
       ENDDO
       !$acc end parallel
-!      call nvtxEndRange
 
-!      call nvtxStartRange("Zonal Loop time test (5)")
 !     loop(5) 350
-      !$acc parallel
-      !$acc loop collapse (3)
-      DO  K=2,NK2
-      DO  J=1,MJ1
-      DO  I=1,MI1
-      terma(I,J,K)=-(FLXI(I,J,K)-FLXI(I-1,J,K))/(2.*DX)
-      ENDDO
-      ENDDO
-      ENDDO
-      !$acc end parallel
-!      call nvtxEndRange
+!      !$acc parallel
+!      !$acc loop collapse (3)
+!      DO  K=2,NK2
+!      DO  J=1,MJ1
+!      DO  I=1,MI1
+!      terma(I,J,K)=-(FLXIZ(I,J,K)-FLXIZ(I-1,J,K))/(2.*DX)
+!      ENDDO
+!      ENDDO
+!      ENDDO
+!      !$acc end parallel
 
 !      IF (.FALSE.) THEN
 
 !     Meridional advection
-!      call nvtxStartRange("Zonal Loop time test (6)")
 !     loop(6) 420
-      !$acc parallel
+      !$acc parallel async(1)
       !$acc loop collapse (2)
       DO  K = 2, NK2
       DO  I = 1,MI1
@@ -133,166 +127,157 @@ CONTAINS
       VNS(I,1,K) = SQRT(VNS(I,1,K))
       !$acc loop
       DO  J = mjm,mjp
-      TEMPI(I,J,K)=U3DY(I,J,K)*RHOU(K)
-      UPI(I,J,K)=0.5*(TEMPI(I,J,K)+ABS(TEMPI(I,J,K)))
-      UMI(I,J,K)=0.5*(TEMPI(I,J,K)-ABS(TEMPI(I,J,K)))
-      UPSRi(i,J,K)=SQRT(UPi(i,J,K))
-      UMSRi(i,J,K)=SQRT(ABS(UMi(i,J,K)))
+      TEMPIM(I,J,K)=U3DY(I,J,K)*RHOU(K)
+      UPIM(I,J,K)=0.5*(TEMPIM(I,J,K)+ABS(TEMPIM(I,J,K)))
+      UMIM(I,J,K)=0.5*(TEMPIM(I,J,K)-ABS(TEMPIM(I,J,K)))
+      UPSRIM(i,J,K)=SQRT(UPIM(i,J,K))
+      UMSRIM(i,J,K)=SQRT(ABS(UMIM(i,J,K)))
       ENDDO
       ENDDO
       ENDDO
       !$acc end parallel
-!      call nvtxEndRange
 
 !     loop(7) 430
 !      CALL bound_ns(nk1, upi(mim,mjm,2))
 !      CALL bound_ns(nk1, umi(mim,mjm,2))
 !     loop(8) 437
 
-!      call nvtxStartRange("Zonal Loop time test (9)")
 !     loop(9) 440
-      !$acc parallel
+      !$acc parallel async(1)
       !$acc loop collapse (2)
       DO  K=2,NK2
       DO  I=1,MI1
       J = 0 
-      FLXI(I,J,K)=TEMPI(I,J,K)*(Q(I,J+1,K)+Q(I,J,K))       &
-       -ALADV*(UPI(I,J,K)*(Q(I,J+1,K)-Q(I,J,K))          &
-       -UPSRI(I,J,K)*VNS(I,1,K)*(Q(I,J,K)-QNS(I,1,K))  &
-       +UMI(I,J,K)*(Q(I,J,K)-Q(I,J+1,K))                 &
-       +UMSRI(I,J,K)*UMSRI(I,J+1,K)*(Q(I,J+1,K)-Q(I,J+2,K)))/3.
+      FLXIM(I,J,K)=TEMPIM(I,J,K)*(Q(I,J+1,K)+Q(I,J,K))       &
+       -ALADV*(UPIM(I,J,K)*(Q(I,J+1,K)-Q(I,J,K))          &
+       -UPSRIM(I,J,K)*VNS(I,1,K)*(Q(I,J,K)-QNS(I,1,K))  &
+       +UMIM(I,J,K)*(Q(I,J,K)-Q(I,J+1,K))                 &
+       +UMSRIM(I,J,K)*UMSRIM(I,J+1,K)*(Q(I,J+1,K)-Q(I,J+2,K)))/3.
 !     inner loop(2): calFLXI 441
       !$acc loop
       DO  J=1,MJ1-1
-      FLXI(I,J,K)=TEMPI(I,J,K)*(Q(I,J+1,K)+Q(I,J,K))       &
-       -ALADV*(UPI(I,J,K)*(Q(I,J+1,K)-Q(I,J,K))          &
-       -UPSRI(I,J,K)*UPSRI(I,J-1,K)*(Q(I,J,K)-Q(I,J-1,K))  &
-       +UMI(I,J,K)*(Q(I,J,K)-Q(I,J+1,K))                 &
-       +UMSRI(I,J,K)*UMSRI(I,J+1,K)*(Q(I,J+1,K)-Q(I,J+2,K)))/3.
+      FLXIM(I,J,K)=TEMPIM(I,J,K)*(Q(I,J+1,K)+Q(I,J,K))       &
+       -ALADV*(UPIM(I,J,K)*(Q(I,J+1,K)-Q(I,J,K))          &
+       -UPSRIM(I,J,K)*UPSRIM(I,J-1,K)*(Q(I,J,K)-Q(I,J-1,K))  &
+       +UMIM(I,J,K)*(Q(I,J,K)-Q(I,J+1,K))                 &
+       +UMSRIM(I,J,K)*UMSRIM(I,J+1,K)*(Q(I,J+1,K)-Q(I,J+2,K)))/3.
       ENDDO
       J = MJ1
-      FLXI(I,J,K)=TEMPI(I,J,K)*(Q(I,J+1,K)+Q(I,J,K))       &
-       -ALADV*(UPI(I,J,K)*(Q(I,J+1,K)-Q(I,J,K))          &
-       -UPSRI(I,J,K)*UPSRI(I,J-1,K)*(Q(I,J,K)-Q(I,J-1,K))  &
-       +UMI(I,J,K)*(Q(I,J,K)-Q(I,J+1,K))                 &
-       +UMSRI(I,J,K)*UMSRI(I,J+1,K)*(Q(I,J+1,K)-QNS(I,2,K)))/3.
+      FLXIM(I,J,K)=TEMPIM(I,J,K)*(Q(I,J+1,K)+Q(I,J,K))       &
+       -ALADV*(UPIM(I,J,K)*(Q(I,J+1,K)-Q(I,J,K))          &
+       -UPSRIM(I,J,K)*UPSRIM(I,J-1,K)*(Q(I,J,K)-Q(I,J-1,K))  &
+       +UMIM(I,J,K)*(Q(I,J,K)-Q(I,J+1,K))                 &
+       +UMSRIM(I,J,K)*UMSRIM(I,J+1,K)*(Q(I,J+1,K)-QNS(I,2,K)))/3.
       ENDDO
       ENDDO
       !$acc end parallel
-!      call nvtxEndRange
 !      CALL send_north(nk1,flxi(0,0,2))
-!      call nvtxStartRange("Zonal Loop time test (10)")
 !     loop(10) 450
-      !$acc parallel
-      !$acc loop collapse (3)
-      DO  K=2,NK2
-      DO  J=1,MJ1
-      DO  I=1,MI1
-      terma(I,J,K)=terma(I,J,K)-(FLXI(I,J,K)-FLXI(I,J-1,K))/(2.*DYNEW)
-      ENDDO
-      ENDDO
-      ENDDO
-      !$acc end parallel
-!      call nvtxEndRange
+!      !$acc parallel
+!      !$acc loop collapse (3)
+!      DO  K=2,NK2
+!      DO  J=1,MJ1
+!      DO  I=1,MI1
+!      terma(I,J,K)=terma(I,J,K)-(FLXIM(I,J,K)-FLXIM(I,J-1,K))/(2.*DYNEW)
+!      ENDDO
+!      ENDDO
+!      ENDDO
+!      !$acc end parallel
 !     Vertical advection
 
-!      call nvtxStartRange("Zonal Loop time test (11)")
 !     loop(11) 520
-      !$acc parallel
+      !$acc parallel async(2)
       !$acc loop collapse (3)
       DO  K=2,NK1
       DO  J=1,MJ1
       DO  I=1,MI1
-      TEMPI(I,J,K)=W3D(I,J,K)*RHOZ(K)
-      UPI(I,J,K)=0.5*(TEMPI(I,J,K)+ABS(TEMPI(I,J,K)))
-      UMI(I,J,K)=0.5*(TEMPI(I,J,K)-ABS(TEMPI(I,J,K)))
-      UPSRI(I,J,K)=SQRT(UPI(I,J,K))
-      UMSRI(I,J,K)=SQRT(ABS(UMI(I,J,K)))
+      TEMPIV(I,J,K)=W3D(I,J,K)*RHOZ(K)
+      UPIV(I,J,K)=0.5*(TEMPIV(I,J,K)+ABS(TEMPIV(I,J,K)))
+      UMIV(I,J,K)=0.5*(TEMPIV(I,J,K)-ABS(TEMPIV(I,J,K)))
+      UPSRIV(I,J,K)=SQRT(UPIV(I,J,K))
+      UMSRIV(I,J,K)=SQRT(ABS(UMIV(I,J,K)))
       ENDDO
       ENDDO
       ENDDO
       !$acc end parallel
-!      call nvtxEndRange
+
 !     loop(12) 530
 !     loop(13) 537
 
-!      call nvtxStartRange("Zonal Loop time test (14)")
 !     loop(14) 540
-      !$acc parallel
+      !$acc parallel async(2)
       !$acc loop collapse (3)
       DO  K=3,NK1-1
       DO  J=1,MJ1
       DO  I=1,MI1
-      FLXI(I,J,K)=TEMPI(I,J,K)*(Q(I,J,K+1)+Q(I,J,K))       &
-       -ALADV*(UPI(I,J,K)*(Q(I,J,K+1)-Q(I,J,K))          &
-       -UPSRI(I,J,K)*UPSRI(I,J,K-1)*(Q(I,J,K)-Q(I,J,K-1))  &
-       +UMI(I,J,K)*(Q(I,J,K)-Q(I,J,K+1))                 &
-       +UMSRI(I,J,K)*UMSRI(I,J,K+1)*(Q(I,J,K+1)-Q(I,J,K+2)))/3.
+      FLXIV(I,J,K)=TEMPIV(I,J,K)*(Q(I,J,K+1)+Q(I,J,K))       &
+       -ALADV*(UPIV(I,J,K)*(Q(I,J,K+1)-Q(I,J,K))          &
+       -UPSRIV(I,J,K)*UPSRIV(I,J,K-1)*(Q(I,J,K)-Q(I,J,K-1))  &
+       +UMIV(I,J,K)*(Q(I,J,K)-Q(I,J,K+1))                 &
+       +UMSRIV(I,J,K)*UMSRIV(I,J,K+1)*(Q(I,J,K+1)-Q(I,J,K+2)))/3.
       ENDDO
       ENDDO
       ENDDO
       !$acc end parallel
-!      call nvtxEndRange
 
-!      call nvtxStartRange("Zonal Loop time test (15)")
 !     loop(15) 545
-      !$acc parallel
+      !$acc parallel async(2)
       !$acc loop collapse (2)
       DO  J=1,MJ1
       DO  I=1,MI1
-      IF(TEMPI(I,J,NK1).GE.0.) THEN
-         FLXI(I,J,NK1)=TEMPI(I,J,NK1)*(Q(I,J,NK2)+Q(I,J,NK1))   &
-         -ALADV*(UPI(I,J,NK1)*(Q(I,J,NK2)-Q(I,J,NK1))         &
-         -UPSRI(I,J,NK1)*UPSRI(I,J,NK1-1)*(Q(I,J,NK1)-Q(I,J,NK1-1)))/3.
+      IF(TEMPIV(I,J,NK1).GE.0.) THEN
+         FLXIV(I,J,NK1)=TEMPIV(I,J,NK1)*(Q(I,J,NK2)+Q(I,J,NK1))   &
+         -ALADV*(UPIV(I,J,NK1)*(Q(I,J,NK2)-Q(I,J,NK1))         &
+         -UPSRIV(I,J,NK1)*UPSRIV(I,J,NK1-1)*(Q(I,J,NK1)-Q(I,J,NK1-1)))/3.
       ELSE
-         FLXi(I,J,NK1)=TEMPI(I,J,NK1)*(Q(I,J,NK2)+Q(I,J,NK1))
+         FLXIV(I,J,NK1)=TEMPIV(I,J,NK1)*(Q(I,J,NK2)+Q(I,J,NK1))
       ENDIF
 
-      IF(TEMPI(I,J,2).GE.0.) THEN
-         FLXI(I,J,2)=TEMPI(I,J,2)*(Q(I,J,3)+Q(I,J,2))
+      IF(TEMPIV(I,J,2).GE.0.) THEN
+         FLXIV(I,J,2)=TEMPIV(I,J,2)*(Q(I,J,3)+Q(I,J,2))
       ELSE
-         FLXI(I,J,2)=TEMPI(I,J,2)*(Q(I,J,3)+Q(I,J,2))  &
-           -ALADV*(UMI(I,J,2)*(Q(I,J,2)-Q(I,J,3))    &
-           +UMSRI(I,J,2)*UMSRI(I,J,3)*(Q(I,J,3)-Q(I,J,4)))/3.
+         FLXIV(I,J,2)=TEMPIV(I,J,2)*(Q(I,J,3)+Q(I,J,2))  &
+           -ALADV*(UMIV(I,J,2)*(Q(I,J,2)-Q(I,J,3))    &
+           +UMSRIV(I,J,2)*UMSRIV(I,J,3)*(Q(I,J,3)-Q(I,J,4)))/3.
       ENDIF
       ENDDO
       ENDDO
       !$acc end parallel
-!      call nvtxEndRange
 
-!      call nvtxStartRange("Zonal Loop time test (16)")
 !     loop(16) 547
-      !$acc parallel
+      !$acc parallel async(2)
       !$acc loop collapse (2)
       DO  J=1,MJ1
       DO  I=1,MI1
-      FLXI(I,J, 1)= 0.
-      FLXI(I,J,NK2)= 0.
+      FLXIV(I,J, 1)= 0.
+      FLXIV(I,J,NK2)= 0.
       ENDDO
       ENDDO
       !$acc end parallel
-!      call nvtxEndRange
+      !$acc wait
 
-!      call nvtxStartRange("Zonal Loop time test (17)")
 !     loop(17) 550
       !$acc parallel
       !$acc loop collapse (3)
       DO  K=2,NK2
       DO  J=1,MJ1
       DO  I=1,MI1
-      terma(I,J,K)=terma(I,J,K)-(FLXI(I,J,K)-FLXI(I,J,K-1))*FNU(K)/(2.*DZ)
+!      zonal
+      terma(I,J,K)=-(FLXIZ(I,J,K)-FLXIZ(I-1,J,K))/(2.*DX)
+!      meri
+      terma(I,J,K)=terma(I,J,K)-(FLXIM(I,J,K)-FLXIM(I,J-1,K))/(2.*DYNEW)
+!      vertical
+      terma(I,J,K)=terma(I,J,K)-(FLXIV(I,J,K)-FLXIV(I,J,K-1))*FNU(K)/(2.*DZ)
       terma(I,J,K)=terma(I,J,K)/RHOU(K)
       !termf(I,J,K)=-(FLXI(I,J,K)-FLXI(I,J,K-1))*FNU(K)/(2.*DZ)/RHOU(K)
       ENDDO
       ENDDO
       ENDDO
       !$acc end parallel
-!      call nvtxEndRange
 
 !     loop(18) 570
 
 !ccwut set flux convergence on topo to zero
-!      call nvtxStartRange("Zonal Loop time test (19)")
 !     loop(19)
       !$acc parallel
       !$acc loop collapse (3)
@@ -307,7 +292,6 @@ CONTAINS
       ENDDO
       !$acc end parallel
       !$acc end data
-!      call nvtxEndRange
 !ccwut 
    END SUBROUTINE advec_3d
 END MODULE advec_3d_module
