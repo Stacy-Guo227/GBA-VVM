@@ -17,14 +17,17 @@ PUBLIC :: advec_3d
 
 CONTAINS
 
-      SUBROUTINE ADVEC_3D (Q,terma, termf)
+      SUBROUTINE ADVEC_3D (Q,terma, termf,qew,qns,uew1,vns1)
 !     Advection for thermodynamic variables 
 !     ALADV: alpha in advection scheme
 
 ! argument list declarations
       REAL (KIND=dbl_kind), DIMENSION(mim:mip,mjm:mjp,NK3), INTENT(in)  :: &
          Q     !  the quantity advected
-
+      REAL (KIND=dbl_kind), DIMENSION(2,mjm:mjp,nk3), INTENT(in)  :: &
+         qew,uew1    
+      REAL (KIND=dbl_kind), DIMENSION(mim:mip,2,nk3), INTENT(in)  :: &
+         qns,vns1     
       REAL (KIND=dbl_kind), DIMENSION(mi1,mj1,NK2), INTENT(out) ::  &  
          terma      ! advective tendency
       REAL (KIND=dbl_kind), DIMENSION(mim:mip,mjm:mjp,nk3), INTENT(out) ::  & 
@@ -37,23 +40,24 @@ CONTAINS
          UPSRIZ(mim:mip,mjm:mjp,NK2),UPSRIM(mim:mip,mjm:mjp,NK2),UPSRIV(mim:mip,mjm:mjp,NK2),UMSRIZ(mim:mip,mjm:mjp,NK2),UMSRIM(mim:mip,mjm:mjp,NK2),UMSRIV(mim:mip,mjm:mjp,NK2)
       REAL (KIND=dbl_kind) :: &
          FLXIZ(0:MI1,0:mj1,NK2),FLXIM(0:MI1,0:mj1,NK2),FLXIV(0:MI1,0:mj1,NK2)
-      REAL (KIND=dbl_kind), DIMENSION(2,mjm:mjp,nk3) :: qew,uew  ! extended copy of q  ew
-      REAL (KIND=dbl_kind), DIMENSION(mim:mip,2,nk3) :: qns,vns  ! extended copy of q  ns
+      REAL (KIND=dbl_kind), DIMENSION(2,mjm:mjp,nk3) :: uew  ! extended copy of q  ew
+      REAL (KIND=dbl_kind), DIMENSION(mim:mip,2,nk3) :: vns  ! extended copy of q  ns
 
       INTEGER (KIND=int_kind) :: &
          i, j, k    ! do loop indices for zonal, meridional and vertical dimensions
 
-      call extend_ne(nk3,q,qew,qns,u3dx,uew,u3dy,vns)
+!      call extend_ne(nk3,q,qew,qns,u3dx,uew,u3dy,vns)
 
 !     Zonal advection
-      !$acc data copyin(UEW,QEW,VNS,QNS) present(terma, Q) create(TEMPIZ,TEMPIM,TEMPIV,UPIZ,UPIM,UPIV,UMIZ,UMIM,UMIV,UPSRIZ,UPSRIM,UPSRIV,UMSRIZ,UMSRIM,UMSRIV,FLXIZ,FLXIM,FLXIV)
-
+      !$acc data present(terma, Q,QEW,QNS) create(UEW,VNS,TEMPIZ,TEMPIM,TEMPIV,UPIZ,UPIM,UPIV,UMIZ,UMIM,UMIV,UPSRIZ,UPSRIM,UPSRIV,UMSRIZ,UMSRIM,UMSRIV,FLXIZ,FLXIM,FLXIV)
+!      UEW = UEW1()
+!      VNS = VNS1 
 !     loop(1) 320
       !$acc parallel async(0)
       !$acc loop collapse (2)
       DO  K = 2, NK2
       DO  J = 1, MJ1
-      UEW(1,J,K) = UEW(1,J,K)*RHOU(K) ! use for u(-1,J,K) =uew(1,J,K)
+      UEW(1,J,K) = UEW1(1,J,K)*RHOU(K) ! use for u(-1,J,K) =uew(1,J,K)
       UEW(1,J,K) = 0.5*(UEW(1,J,K)+ABS(UEW(1,J,K)))
       UEW(1,J,K) = SQRT(UEW(1,J,K))
       !$acc loop
@@ -121,7 +125,7 @@ CONTAINS
       !$acc loop collapse (2)
       DO  K = 2, NK2
       DO  I = 1,MI1
-      VNS(I,1,K) = RHOU(K)*VNS(I,1,K)
+      VNS(I,1,K) = RHOU(K)*VNS1(I,1,K)
       VNS(I,1,K) = 0.5*(VNS(I,1,K)+ABS(VNS(I,1,K)))
       VNS(I,1,K) = SQRT(VNS(I,1,K))
       !$acc loop
