@@ -1611,7 +1611,7 @@ implicit none
   integer k
   integer j,n,r,s
 
-  real :: YP_local(1:i1,1:j1), YL_local(1:i1,1:j1)
+  real :: YP_local(1:i1,1:j1,1:nchsp), YL_local(1:i1,1:j1,1:nchsp)
 
   character(len=6), dimension(nchsp) :: name_local
   logical, dimension(nchsp) :: active_local
@@ -1674,180 +1674,176 @@ implicit none
   
   YL(:,:,:) = 0.
   YP(:,:,:) = 0.
-  !$acc data copyin(nchsp, active_local, name_local, H2O, nr_PL_local, formula_local, r_nr_local, &
-  !$acc &           PorL_local, coef_local, comp1_local, comp2_local, comp3_local, comp4_local,   &
-  !$acc &           exp1_local, exp2_local, exp3_local, exp4_local, raddep_local, Kindex_local)
+  YL_local = 0.
+  YP_local = 0.
 
-  !$acc enter data copyin(KeffT, keff, ysum, gdt, k, ynew, YP, YL)
-  !$acc parallel loop private(j, kreact,YL_local,YP_local) default(present) 
+  !acc data copyin(nchsp, active_local, name_local, H2O, nr_PL_local, formula_local, r_nr_local, &
+  !$acc &           PorL_local, coef_local, comp1_local, comp2_local, comp3_local, comp4_local,   &
+  !$acc &           exp1_local, exp2_local, exp3_local, exp4_local, raddep_local, Kindex_local,   &
+  !$acc &           KeffT, keff, ysum, gdt, k) &
+  !$acc &    copy(ynew, YP, YL)
+  !$acc parallel loop private(j, kreact)
   do n=1,nchsp
   if (active_local(n) .EQV. .TRUE.) then
-    YL_local = 0.
-    YP_local = 0.
     if (name_local(n) == H2O%name )  cycle    !don't do calculation of H2O
 !    if (PL_scheme(n)%name == PRODUC%name) cycle
     do j=1, nr_PL_local(n)
 
       if (raddep_local(n,j) == 1 ) then !we have to use effective Keff from Ratech
-        select case (formula_local(n,j))
-        case (0)
+        if (formula_local(n,j) == 0 ) then
           if(PorL_local(n,j) == 1) then
-              YP_local = YP_local + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k)
+              YP_local(:,:,n) = YP_local(:,:,n) + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k)
           else
-              YL_local = YL_local + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k)
+              YL_local(:,:,n) = YL_local(:,:,n) + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k)
           endif
-        case (1)
+        elseif (formula_local(n,j) == 1) then
           if(PorL_local(n,j) == 1) then
-              YP_local = YP_local + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
+              YP_local(:,:,n) = YP_local(:,:,n) + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
                                     * ynew(:,:,comp1_local(n,j))
           else
-              YL_local = YL_local + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
+              YL_local(:,:,n) = YL_local(:,:,n) + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
                                     * ynew(:,:,comp1_local(n,j))
           endif
-        case (2)
+        elseif (formula_local(n,j) == 2) then
           if(PorL_local(n,j) == 1) then
-              YP_local = YP_local + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
+              YP_local(:,:,n) = YP_local(:,:,n) + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
                                     * ynew(:,:,comp1_local(n,j)) * ynew(:,:,comp2_local(n,j))
           else
-              YL_local = YL_local + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
+              YL_local(:,:,n) = YL_local(:,:,n) + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
                                     * ynew(:,:,comp1_local(n,j)) * ynew(:,:,comp2_local(n,j))
           endif
-        case (3)
+        elseif (formula_local(n,j) == 3) then
           if(PorL_local(n,j) == 1) then
-              YP_local = YP_local + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
+              YP_local(:,:,n) = YP_local(:,:,n) + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
                                     * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j)
           else
-              YL_local = YL_local + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
+              YL_local(:,:,n) = YL_local(:,:,n) + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
                                     * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j)
           endif
-        case (4)
+        elseif (formula_local(n,j) == 4) then
           if(PorL_local(n,j) == 1) then
-              YP_local = YP_local + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
+              YP_local(:,:,n) = YP_local(:,:,n) + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
                                     * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
                                     * ynew(:,:,comp2_local(n,j)) ** exp2_local(n,j)
           else
-              YL_local = YL_local + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
+              YL_local(:,:,n) = YL_local(:,:,n) + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
                                     * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
                                     * ynew(:,:,comp2_local(n,j)) ** exp2_local(n,j)
           endif
-        case (5)
+        elseif (formula_local(n,j) == 5) then
           if(PorL_local(n,j) == 1) then
-              YP_local = YP_local + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
+              YP_local(:,:,n) = YP_local(:,:,n) + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
                                     * ynew(:,:,comp1_local(n,j)) &
                                     * ynew(:,:,comp2_local(n,j)) &
                                     * ynew(:,:,comp3_local(n,j))
           else
-              YL_local = YL_local + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
+              YL_local(:,:,n) = YL_local(:,:,n) + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
                                     * ynew(:,:,comp1_local(n,j)) &
                                     * ynew(:,:,comp2_local(n,j)) &
                                     * ynew(:,:,comp3_local(n,j))
           endif
-        case (6)
+        elseif (formula_local(n,j) == 6) then
           if(PorL_local(n,j) == 1) then
-              YP_local = YP_local + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
+              YP_local(:,:,n) = YP_local(:,:,n) + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
                                     * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
                                     * ynew(:,:,comp2_local(n,j)) ** exp2_local(n,j) &
                                     * ynew(:,:,comp3_local(n,j)) ** exp3_local(n,j)
           else
-              YL_local = YL_local + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
+              YL_local(:,:,n) = YL_local(:,:,n) + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
                                     * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
                                     * ynew(:,:,comp2_local(n,j)) ** exp2_local(n,j) &
                                     * ynew(:,:,comp3_local(n,j)) ** exp3_local(n,j)
           endif
-        case (7)
+        elseif (formula_local(n,j) == 7) then
           if(PorL_local(n,j) == 1) then
-              YP_local = YP_local + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
+              YP_local(:,:,n) = YP_local(:,:,n) + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
                                     * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
                                     * ynew(:,:,comp2_local(n,j)) ** exp2_local(n,j) &
                                     * ynew(:,:,comp3_local(n,j)) ** exp3_local(n,j) &
                                     * ynew(:,:,comp4_local(n,j)) ** exp4_local(n,j)
           else
-              YL_local = YL_local + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
+              YL_local(:,:,n) = YL_local(:,:,n) + coef_local(n,j) * keff(:,:,Kindex_local(n,j),k) &
                                     * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
                                     * ynew(:,:,comp2_local(n,j)) ** exp2_local(n,j) &
                                     * ynew(:,:,comp3_local(n,j)) ** exp3_local(n,j) &
                                     * ynew(:,:,comp4_local(n,j)) ** exp4_local(n,j)
           endif
-        end select
+        endif
       else
         kreact(:,:) = coef_local(n,j) * KeffT(:,:,Kindex_local(n,j))
-        select case (formula_local(n,j))
-        case (0)
+        if (formula_local(n,j) == 0) then
           if(PorL_local(n,j) == 1) then
-              YP_local = YP_local + kreact(:,:)
+              YP_local(:,:,n) = YP_local(:,:,n) + kreact(:,:)
           else
-              YL_local = YL_local + kreact(:,:)
+              YL_local(:,:,n) = YL_local(:,:,n) + kreact(:,:)
           endif
-        case (1)
+        elseif (formula_local(n,j) == 1) then
           if(PorL_local(n,j) == 1) then
-              YP_local = YP_local + kreact(:,:) * ynew(:,:,comp1_local(n,j))
+              YP_local(:,:,n) = YP_local(:,:,n) + kreact(:,:) * ynew(:,:,comp1_local(n,j))
           else
-              YL_local = YL_local + kreact(:,:) * ynew(:,:,comp1_local(n,j))
+              YL_local(:,:,n) = YL_local(:,:,n) + kreact(:,:) * ynew(:,:,comp1_local(n,j))
           endif
-        case (2)
+        elseif (formula_local(n,j) == 2) then
           if(PorL_local(n,j) == 1) then
-              YP_local = YP_local + kreact(:,:) * ynew(:,:,comp1_local(n,j)) * ynew(:,:,comp2_local(n,j))
+              YP_local(:,:,n) = YP_local(:,:,n) + kreact(:,:) * ynew(:,:,comp1_local(n,j)) * ynew(:,:,comp2_local(n,j))
           else
-              YL_local = YL_local + kreact(:,:) * ynew(:,:,comp1_local(n,j)) * ynew(:,:,comp2_local(n,j))
+              YL_local(:,:,n) = YL_local(:,:,n) + kreact(:,:) * ynew(:,:,comp1_local(n,j)) * ynew(:,:,comp2_local(n,j))
           endif
-        case (3)
+        elseif (formula_local(n,j) == 3) then
           if(PorL_local(n,j) == 1) then
-              YP_local = YP_local + kreact(:,:) * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j)
+              YP_local(:,:,n) = YP_local(:,:,n) + kreact(:,:) * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j)
           else
-              YL_local = YL_local + kreact(:,:) * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j)
+              YL_local(:,:,n) = YL_local(:,:,n) + kreact(:,:) * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j)
           endif
-        case (4)
+        elseif (formula_local(n,j) == 4) then
           if(PorL_local(n,j) == 1) then
-              YP_local = YP_local + kreact(:,:) * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
+              YP_local(:,:,n) = YP_local(:,:,n) + kreact(:,:) * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
                                                 * ynew(:,:,comp2_local(n,j)) ** exp2_local(n,j)
           else
-              YL_local = YL_local + kreact(:,:) * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
+              YL_local(:,:,n) = YL_local(:,:,n) + kreact(:,:) * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
                                                 * ynew(:,:,comp2_local(n,j)) ** exp2_local(n,j)
           endif
-        case (5)
+        elseif (formula_local(n,j) == 5) then
           if(PorL_local(n,j) == 1) then
-              YP_local = YP_local + kreact(:,:) * ynew(:,:,comp1_local(n,j)) &
+              YP_local(:,:,n) = YP_local(:,:,n) + kreact(:,:) * ynew(:,:,comp1_local(n,j)) &
                                                 * ynew(:,:,comp2_local(n,j)) &
                                                 * ynew(:,:,comp3_local(n,j))
           else
-              YL_local = YL_local + kreact(:,:) * ynew(:,:,comp1_local(n,j)) &
+              YL_local(:,:,n) = YL_local(:,:,n) + kreact(:,:) * ynew(:,:,comp1_local(n,j)) &
                                                 * ynew(:,:,comp2_local(n,j)) &
                                                 * ynew(:,:,comp3_local(n,j))
           endif
-        case (6)
+        elseif (formula_local(n,j) == 6) then
           if(PorL_local(n,j) == 1) then
-              YP_local = YP_local + kreact(:,:) * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
+              YP_local(:,:,n) = YP_local(:,:,n) + kreact(:,:) * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
                                                 * ynew(:,:,comp2_local(n,j)) ** exp2_local(n,j) &
                                                 * ynew(:,:,comp3_local(n,j)) ** exp3_local(n,j)
           else
-              YL_local = YL_local + kreact(:,:) * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
+              YL_local(:,:,n) = YL_local(:,:,n) + kreact(:,:) * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
                                                 * ynew(:,:,comp2_local(n,j)) ** exp2_local(n,j) &
                                                 * ynew(:,:,comp3_local(n,j)) ** exp3_local(n,j)
           endif
-        case (7)
+        elseif (formula_local(n,j) == 7) then
           if(PorL_local(n,j) == 1) then
-              YP_local = YP_local + kreact(:,:) * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
+              YP_local(:,:,n) = YP_local(:,:,n) + kreact(:,:) * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
                                                 * ynew(:,:,comp2_local(n,j)) ** exp2_local(n,j) &
                                                 * ynew(:,:,comp3_local(n,j)) ** exp3_local(n,j) &
                                                 * ynew(:,:,comp4_local(n,j)) ** exp4_local(n,j)
           else
-              YL_local = YL_local + kreact(:,:) * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
+              YL_local(:,:,n) = YL_local(:,:,n) + kreact(:,:) * ynew(:,:,comp1_local(n,j)) ** exp1_local(n,j) &
                                                 * ynew(:,:,comp2_local(n,j)) ** exp2_local(n,j) &
                                                 * ynew(:,:,comp3_local(n,j)) ** exp3_local(n,j) &
                                                 * ynew(:,:,comp4_local(n,j)) ** exp4_local(n,j)
           endif
-        end select
+        endif
       endif
     enddo
-!    YP(:,:,n)=YP(:,:,n)+YP_local
-!    YL(:,:,n)=YL(:,:,n)+YL_local
-
     do r=1,i1
       do s=1,j1
         !$acc atomic
-        YP(r,s,n)=YP(r,s,n)+YP_local(r,s)
+        YP(r,s,n)=YP(r,s,n)+YP_local(r,s,n)
         !$acc atomic
-        YL(r,s,n)=YL(r,s,n)+YL_local(r,s)
+        YL(r,s,n)=YL(r,s,n)+YL_local(r,s,n)
       enddo
     enddo
 
@@ -1857,8 +1853,6 @@ implicit none
   endif !active
   
   enddo !n=1,nchsp
-  !$acc exit data copyout(ynew, YP, YL)
-  !$acc exit data delete(KeffT, keff, ysum, gdt, k)
   !$acc end data
 end subroutine ITER
 
