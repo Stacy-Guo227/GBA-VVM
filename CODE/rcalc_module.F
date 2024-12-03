@@ -65,7 +65,7 @@ CONTAINS
 
       call nvtxStartRange('advection')
       call timer_start('advection')
-      !$acc data copyin(rhou, fnu, rhoz, itypew, u3dy, w3d, u3dx, TH3D, QV3D, QR3D, QC3D, QI3D, NC3D, NR3D, NI3D, QRIM3D, BRIM3D, QS3D, TC3D(:,:,:,1:ntracer), CHEM3D(:,:,:,1:nchem)) &
+      !$acc data copyin(rhou, fnu, rhoz, itypew, u3dy, w3d, u3dx, TH3D, QV3D, QR3D, QC3D, QI3D, NC3D, NR3D, NI3D, QRIM3D, BRIM3D, QS3D, TC3D, CHEM3D) &
       !$acc create(FTH3D(:,:,:,L), FQV3D(:,:,:,L), FQR3D(:,:,:,L), FQC3D(:,:,:,L), FQI3D(:,:,:,L), FNC3D(:,:,:,L), FNR3D(:,:,:,L), FNI3D(:,:,:,L), FQRIM3D(:,:,:,L), FBRIM3D(:,:,:,L), FQS3D(:,:,:,L), FTC3D(:,:,:,L,1:ntracer), FCHEM3D(:,:,:,L,1:nchem)) &
       !$acc create(THew, THns, QVew, QVns, QRew, QRns, QCew, QCns, QIew, QIns, NCew, NCns, NRew, NRns, NIew, NIns, QRIMew, QRIMns, BRIMew, BRIMns, QSew, QSns, TCew, TCns, CHEMew, CHEMns, uew, vns)
       
@@ -104,14 +104,14 @@ CONTAINS
 #endif
       if (ntracer > 0)then
          do nt = 1,ntracer
-            call extend_ne(nk3, TC3D(mim,mjm,1,nt), TCew(:,:,:,nt), TCns(:,:,:,nt), U3DX, uew, U3DY, vns)
+            call extend_ne(nk3, TC3D(:,:,:,nt), TCew(:,:,:,nt), TCns(:,:,:,nt), U3DX, uew, U3DY, vns)
             !$acc update device(TCew(:,:,:,nt), TCns(:,:,:,nt))
          enddo
       endif
 
 #if defined (CHEM)
          do nt = 1,nchem
-            CALL extend_ne(nk3, CHEM3D(mim,mjm,1,nt), CHEMew(:,:,:,nt), CHEMns(:,:,:,nt), U3DX, uew, U3DY, vns)
+            CALL extend_ne(nk3, CHEM3D(:,:,:,nt), CHEMew(:,:,:,nt), CHEMns(:,:,:,nt), U3DX, uew, U3DY, vns)
             !$acc update device(CHEMew(:,:,:,nt), CHEMns(:,:,:,nt))
          enddo
 #endif
@@ -162,13 +162,13 @@ CONTAINS
       !$acc wait
       if (ntracer > 0)then
          do nt = 1,ntracer
-            CALL ADVEC_3D ( TC3D(mim,mjm,1,nt), FTC3D(:,:,:,L,nt), TCew(:,:,:,nt), TCns(:,:,:,nt), uew, vns )
+            CALL ADVEC_3D ( TC3D(:,:,:,nt), FTC3D(:,:,:,L,nt), TCew(:,:,:,nt), TCns(:,:,:,nt), uew, vns )
          enddo
       endif
 
 #if defined (CHEM)
          do nt = 1,nchem
-            CALL ADVEC_3D ( CHEM3D(mim,mjm,1,nt), FCHEM3D(:,:,:,L,nt), CHEMew(:,:,:,nchem), CHEMns(:,:,:,nchem), uew, vns )
+            CALL ADVEC_3D ( CHEM3D(:,:,:,nt), FCHEM3D(:,:,:,L,nt), CHEMew(:,:,:,nt), CHEMns(:,:,:,nt), uew, vns )
          enddo
 #endif
 

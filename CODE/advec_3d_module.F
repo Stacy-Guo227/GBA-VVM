@@ -56,7 +56,7 @@ CONTAINS
 !      !$acc data copyin(Q, qew, uew, qns, vns) copyout(terma) create(TEMPI_z, TEMPI_m, TEMPI_v, UPI_z, UPI_m, UPI_v, UMI_z, UMI_m, UMI_v, UPSRI_z, UPSRI_m, UPSRI_v, UMSRI_z, UMSRI_m, !UMSRI_v, FLXI_z, FLXI_m, FLXI_v)
       !$acc data present(Q, terma, u3dx, u3dy, w3d, rhou, rhoz, fnu, itypew, qew, uew, qns, vns) &
       !$acc create(TEMPI_z, TEMPI_m, TEMPI_v, UPI_z, UPI_m, UPI_v, UMI_z, UMI_m, UMI_v, UPSRI_z, UPSRI_m, UPSRI_v, UMSRI_z, UMSRI_m, UMSRI_v, FLXI_z, FLXI_m, FLXI_v, uew_temp, vns_temp)
-      !$acc update(qew, qns)
+      !$acc update device(qew, qns)
       
 !     Zonal advection
       !$acc parallel loop collapse(2) async(1)
