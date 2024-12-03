@@ -48,7 +48,7 @@ CONTAINS
       call nvtxStartRange("Zonal Loop time test (1)")
 !     Zonal advection
 !     loop(1) 320
-      !$acc data copyin(U3DX(:,:,:),RHOU(:)) copyout(TEMPI(:,:,:)) copy(UEW(:,:,:))
+      !$acc data present(U3DX(:,:,:),RHOU(:)) copyout(TEMPI(:,:,:)) copy(UEW(:,:,:))
       !$acc parallel
       !$acc loop
       DO  K = 2, NK2
@@ -62,22 +62,29 @@ CONTAINS
       ENDDO
       ENDDO
       !$acc end parallel
-      !$acc end data
       call nvtxEndRange
 
       call nvtxStartRange("Zonal Loop time test (2)")
 !     loop(2) 330
+      !$acc data present(UEW(:,:,:),TEMPI(:,:,:)) copyout(UPI(:,:,:),UMI(:,:,:))
+      !$acc parallel
+      !$acc loop 
       DO  K=2,NK2
+      !$acc loop
       DO  J=1,MJ1
       UEW(1,J,K) = 0.5*(UEW(1,J,K)+ABS(UEW(1,J,K)))
+      !$acc loop
       DO  I=mim,mip
       UPI(I,J,K)=0.5*(TEMPI(I,J,K)+ABS(TEMPI(I,J,K)))
       UMI(I,J,K)=0.5*(TEMPI(I,J,K)-ABS(TEMPI(I,J,K)))
       ENDDO
       ENDDO
       ENDDO
+      !$acc end parallel
+      !$acc end data
+      !$acc end data
       call nvtxEndRange
-
+      
 !     loop(3) 337
       DO  K=2,NK2
       DO  J=1,MJ1
