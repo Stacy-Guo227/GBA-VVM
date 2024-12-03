@@ -214,7 +214,7 @@ save
   character*6, allocatable :: chem_name_list(:) !nchsp
 
   real, allocatable :: ynew(:,:,:),yold(:,:,:),ysum(:,:,:)
-  real, allocatable,target :: yl(:,:,:),yp(:,:,:)
+  real, allocatable :: yl(:,:,:),yp(:,:,:)
 
   real, allocatable :: writearray(:,:)
   real*4, allocatable :: k3d(:,:,:,:)
@@ -1609,97 +1609,175 @@ implicit none
 
   real    gdt
   integer k
-  real,pointer,dimension(:,:,:) :: YPL_pointer
   integer j,n
 
   YL(:,:,:) = 0.
   YP(:,:,:) = 0.
-  !$acc data copyin(PL_scheme, KeffT, RC, ysum) copy(YPL_pointer, ynew, YP, YL)
-  !$acc parallel loop
+  !$acc data copyin(PL_scheme, KeffT, keff, RC, ysum, gdt, k, H2O) copy(ynew, YP, YL)
+  !$acc parallel loop private(j, kreact) 
   do n=1,nchsp
   if (PL_scheme(n)%active .EQV. .TRUE.) then
     if (PL_scheme(n)%name == H2O%name )  cycle    !don't do calculation of H2O
 !    if (PL_scheme(n)%name == PRODUC%name) cycle
-    !$acc loop private(j, kreact, YPL_pointer) 
     do j=1, PL_scheme(n)%nr_PL
-
-      if(PL_scheme(n)%PL(j)%PorL == 1) then
-        YPL_pointer => YP
-      else
-        YPL_pointer => YL
-      endif
 
       if (RC(PL_scheme(n)%PL(j)%r_nr)%raddep == 1 ) then !we have to use effective Keff from Ratech
         select case (PL_scheme(n)%PL(j)%formula)
         case (0)
-          YPL_pointer(:,:,n) = YPL_pointer(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k)
+          if(PL_scheme(n)%PL(j)%PorL == 1) then
+              YP(:,:,n) = YP(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k)
+          else
+              YL(:,:,n) = YL(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k)
+          endif
         case (1)
-          YPL_pointer(:,:,n) = YPL_pointer(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
-                                                    * ynew(:,:,PL_scheme(n)%PL(j)%comp1)
+          if(PL_scheme(n)%PL(j)%PorL == 1) then
+              YP(:,:,n) = YP(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp1)
+          else
+              YL(:,:,n) = YL(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp1)
+          endif
         case (2)
-          YPL_pointer(:,:,n) = YPL_pointer(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
-                                                    * ynew(:,:,PL_scheme(n)%PL(j)%comp1) * ynew(:,:,PL_scheme(n)%PL(j)%comp2)
+          if(PL_scheme(n)%PL(j)%PorL == 1) then
+              YP(:,:,n) = YP(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp1) * ynew(:,:,PL_scheme(n)%PL(j)%comp2)
+          else
+              YL(:,:,n) = YL(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp1) * ynew(:,:,PL_scheme(n)%PL(j)%comp2)
+          endif
         case (3)
-          YPL_pointer(:,:,n) = YPL_pointer(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
-                                                    * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1
+          if(PL_scheme(n)%PL(j)%PorL == 1) then
+              YP(:,:,n) = YP(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1
+          else
+              YL(:,:,n) = YL(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1
+          endif
         case (4)
-          YPL_pointer(:,:,n) = YPL_pointer(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
-                                                    * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
-                                                    * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2
+          if(PL_scheme(n)%PL(j)%PorL == 1) then
+              YP(:,:,n) = YP(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2
+          else
+              YL(:,:,n) = YL(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2
+          endif
         case (5)
-          YPL_pointer(:,:,n) = YPL_pointer(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
-                                                    * ynew(:,:,PL_scheme(n)%PL(j)%comp1) &
-                                                    * ynew(:,:,PL_scheme(n)%PL(j)%comp2) &
-                                                    * ynew(:,:,PL_scheme(n)%PL(j)%comp3)
+          if(PL_scheme(n)%PL(j)%PorL == 1) then
+              YP(:,:,n) = YP(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp1) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp2) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp3)
+          else
+              YL(:,:,n) = YL(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp1) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp2) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp3)
+          endif
         case (6)
-          YPL_pointer(:,:,n) = YPL_pointer(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
-                                                    * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
-                                                    * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2 &
-                                                    * ynew(:,:,PL_scheme(n)%PL(j)%comp3) ** PL_scheme(n)%PL(j)%exp3
+          if(PL_scheme(n)%PL(j)%PorL == 1) then
+              YP(:,:,n) = YP(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2 &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp3) ** PL_scheme(n)%PL(j)%exp3
+          else
+              YL(:,:,n) = YL(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2 &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp3) ** PL_scheme(n)%PL(j)%exp3
+          endif
         case (7)
-          YPL_pointer(:,:,n) = YPL_pointer(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
-                                                    * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
-                                                    * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2 &
-                                                    * ynew(:,:,PL_scheme(n)%PL(j)%comp3) ** PL_scheme(n)%PL(j)%exp3 &
-                                                    * ynew(:,:,PL_scheme(n)%PL(j)%comp4) ** PL_scheme(n)%PL(j)%exp4
+          if(PL_scheme(n)%PL(j)%PorL == 1) then
+              YP(:,:,n) = YP(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2 &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp3) ** PL_scheme(n)%PL(j)%exp3 &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp4) ** PL_scheme(n)%PL(j)%exp4
+          else
+              YL(:,:,n) = YL(:,:,n) + PL_scheme(n)%PL(j)%coef * keff(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex,k) &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2 &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp3) ** PL_scheme(n)%PL(j)%exp3 &
+                                      * ynew(:,:,PL_scheme(n)%PL(j)%comp4) ** PL_scheme(n)%PL(j)%exp4
+          endif
         end select
       else
         kreact(:,:) = PL_scheme(n)%PL(j)%coef * KeffT(:,:,RC(PL_scheme(n)%PL(j)%r_nr)%Kindex)
         select case (PL_scheme(n)%PL(j)%formula)
         case (0)
-          YPL_pointer(:,:,n) = YPL_pointer(:,:,n) + kreact(:,:)
+          if(PL_scheme(n)%PL(j)%PorL == 1) then
+              YP(:,:,n) = YP(:,:,n) + kreact(:,:)
+          else
+              YL(:,:,n) = YL(:,:,n) + kreact(:,:)
+          endif
         case (1)
-          YPL_pointer(:,:,n) = YPL_pointer(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1)
+          if(PL_scheme(n)%PL(j)%PorL == 1) then
+              YP(:,:,n) = YP(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1)
+          else
+              YL(:,:,n) = YL(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1)
+          endif
         case (2)
-          YPL_pointer(:,:,n) = YPL_pointer(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) * ynew(:,:,PL_scheme(n)%PL(j)%comp2)
+          if(PL_scheme(n)%PL(j)%PorL == 1) then
+              YP(:,:,n) = YP(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) * ynew(:,:,PL_scheme(n)%PL(j)%comp2)
+          else
+              YL(:,:,n) = YL(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) * ynew(:,:,PL_scheme(n)%PL(j)%comp2)
+          endif
         case (3)
-          YPL_pointer(:,:,n) = YPL_pointer(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1
+          if(PL_scheme(n)%PL(j)%PorL == 1) then
+              YP(:,:,n) = YP(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1
+          else
+              YL(:,:,n) = YL(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1
+          endif
         case (4)
-          YPL_pointer(:,:,n) = YPL_pointer(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
-                                                                * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2
+          if(PL_scheme(n)%PL(j)%PorL == 1) then
+              YP(:,:,n) = YP(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
+                                                  * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2
+          else
+              YL(:,:,n) = YL(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
+                                                  * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2
+          endif
         case (5)
-          YPL_pointer(:,:,n) = YPL_pointer(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) &
-                                                                * ynew(:,:,PL_scheme(n)%PL(j)%comp2) &
-                                                                * ynew(:,:,PL_scheme(n)%PL(j)%comp3)
+          if(PL_scheme(n)%PL(j)%PorL == 1) then
+              YP(:,:,n) = YP(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) &
+                                                  * ynew(:,:,PL_scheme(n)%PL(j)%comp2) &
+                                                  * ynew(:,:,PL_scheme(n)%PL(j)%comp3)
+          else
+              YL(:,:,n) = YL(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) &
+                                                  * ynew(:,:,PL_scheme(n)%PL(j)%comp2) &
+                                                  * ynew(:,:,PL_scheme(n)%PL(j)%comp3)
+          endif
         case (6)
-          YPL_pointer(:,:,n) = YPL_pointer(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
-                                                                * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2 &
-                                                                * ynew(:,:,PL_scheme(n)%PL(j)%comp3) ** PL_scheme(n)%PL(j)%exp3
+          if(PL_scheme(n)%PL(j)%PorL == 1) then
+              YP(:,:,n) = YP(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
+                                                  * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2 &
+                                                  * ynew(:,:,PL_scheme(n)%PL(j)%comp3) ** PL_scheme(n)%PL(j)%exp3
+          else
+              YL(:,:,n) = YL(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
+                                                  * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2 &
+                                                  * ynew(:,:,PL_scheme(n)%PL(j)%comp3) ** PL_scheme(n)%PL(j)%exp3
+          endif
         case (7)
-          YPL_pointer(:,:,n) = YPL_pointer(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
-                                                                * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2 &
-                                                                * ynew(:,:,PL_scheme(n)%PL(j)%comp3) ** PL_scheme(n)%PL(j)%exp3 &
-                                                                * ynew(:,:,PL_scheme(n)%PL(j)%comp4) ** PL_scheme(n)%PL(j)%exp4
+          if(PL_scheme(n)%PL(j)%PorL == 1) then
+              YP(:,:,n) = YP(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
+                                                  * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2 &
+                                                  * ynew(:,:,PL_scheme(n)%PL(j)%comp3) ** PL_scheme(n)%PL(j)%exp3 &
+                                                  * ynew(:,:,PL_scheme(n)%PL(j)%comp4) ** PL_scheme(n)%PL(j)%exp4
+          else
+              YL(:,:,n) = YL(:,:,n) + kreact(:,:) * ynew(:,:,PL_scheme(n)%PL(j)%comp1) ** PL_scheme(n)%PL(j)%exp1 &
+                                                  * ynew(:,:,PL_scheme(n)%PL(j)%comp2) ** PL_scheme(n)%PL(j)%exp2 &
+                                                  * ynew(:,:,PL_scheme(n)%PL(j)%comp3) ** PL_scheme(n)%PL(j)%exp3 &
+                                                  * ynew(:,:,PL_scheme(n)%PL(j)%comp4) ** PL_scheme(n)%PL(j)%exp4
+          endif
         end select
       endif
-
+     
     enddo
-    !acc end loop
     ynew(:,:,n)=max(0.0,(ysum(:,:,n)+gdt*YP(:,:,n))/(1.0+gdt*YL(:,:,n)))
   else
     ynew(:,:,n) = ysum(:,:,n)
   endif !active
-
+  
   enddo !n=1,nchsp
   !$acc end data
 end subroutine ITER
