@@ -52,7 +52,6 @@ CONTAINS
 
       call nvtxStartRange('advection')
       call timer_start('advection')
-      !$acc data copyin(U3DX,U3DY,W3D,ITYPEW,FNU,RHOU,RHOZ)
       CALL ADVEC_3D ( TH3D, FTH3D(1,1,1,L), thstd1  )
 #if defined (PHYSICS)
 
@@ -79,26 +78,21 @@ CONTAINS
       CALL ADVEC_3D ( QILIQ3D, FQILIQ3D(1,1,1,L), term4 )
 #endif
 #else
+
       CALL ADVEC_3D ( QS3D, FQS3D(1,1,1,L), term4 )
-!     loop(1) 160
-      DO  K = 2, NK2
-      DO  J = 1, MJ1
-      DO  I = 1, MI1
+      DO 160 K = 2, NK2
+      DO 160 J = 1, MJ1
+      DO 160 I = 1, MI1
       HYSG3D(I,J,K)=HYSG3D(I,J,K) + TERM4(I,J,K)
-      ENDDO
-      ENDDO
-      ENDDO
+  160 CONTINUE
 
       CALL ADVEC_3D ( QG3D, FQG3D(1,1,1,L), term4 )
-!     loop(2) 170
       DO 170 K = 2, NK2
       DO 170 J = 1, MJ1
       DO 170 I = 1, MI1
       HYSG3D(I,J,K)=(HYSG3D(I,J,K) + TERM4(I,J,K)) &
                                *(HLF/CP)*86400.
-      ENDDO
-      ENDDO
-      ENDDO
+  170 CONTINUE
 #endif
     
       if (ntracer > 0)then
@@ -112,7 +106,7 @@ CONTAINS
             CALL ADVEC_3D ( CHEM3D(mim,mjm,1,nt), FCHEM3D(1,1,1,L,nt), term4 )
          enddo
 #endif
-      !$acc end data
+
 
 #endif
       call timer_stop('advection')
