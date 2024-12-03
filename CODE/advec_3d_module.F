@@ -46,7 +46,7 @@ CONTAINS
       call extend_ne(nk3,q,qew,qns,u3dx,uew,u3dy,vns)
 
 !     Zonal advection
-      !$acc data copyin(UEW,QEW,VNS,QNS,Q) copyout(terma) create(TEMPIZ,TEMPIM,TEMPIV,UPIZ,UPIM,UPIV,UMIZ,UMIM,UMIV,UPSRIZ,UPSRIM,UPSRIV,UMSRIZ,UMSRIM,UMSRIV,FLXIZ,FLXIM,FLXIV)
+      !$acc data copyin(UEW,QEW,VNS,QNS) present(terma, Q) create(TEMPIZ,TEMPIM,TEMPIV,UPIZ,UPIM,UPIV,UMIZ,UMIM,UMIV,UPSRIZ,UPSRIM,UPSRIV,UMSRIZ,UMSRIM,UMSRIV,FLXIZ,FLXIM,FLXIV)
 
 !     loop(1) 320
       !$acc parallel async(0)

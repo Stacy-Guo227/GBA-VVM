@@ -53,51 +53,33 @@ CONTAINS
 
       call nvtxStartRange('advection')
       call timer_start('advection')
-      !$acc data copyin(FNU,RHOU,RHOZ,W3D,ITYPEW,U3DX,U3DY)
+      !$acc data copyin(FNU,RHOU,RHOZ,W3D,ITYPEW,U3DX,U3DY, TH3D, QV3D, QR3D, QC3D, QI3D, NC3D, NR3D, NI3D, QRIM3D, BRIM3D, QS3D, TC3D(:,:,:,1:ntracer), CHEM3D(:,:,:,1:nchem)) create(FTH3D(:,:,:,L), FQV3D(:,:,:,L), FQR3D(:,:,:,L), FQC3D(:,:,:,L), FQI3D(:,:,:,L), FNC3D(:,:,:,L), FNR3D(:,:,:,L), FNI3D(:,:,:,L), FQRIM3D(:,:,:,L), FBRIM3D(:,:,:,L), FQS3D(:,:,:,L), FTC3D(:,:,:,L,1:ntracer), FCHEM3D(:,:,:,L,1:nchem))
 
-
-!      !$acc async(1)
       CALL ADVEC_3D ( TH3D, FTH3D(1,1,1,L), thstd1 )
-!      !$acc end parallel
 #if defined (PHYSICS)
-!      !$acc async(2)
       CALL ADVEC_3D ( QV3D, FQV3D(1,1,1,L), QVSTD )
-!      !$acc end parallel
-!      !$acc async(3)  
+
       CALL ADVEC_3D ( QR3D, FQR3D(1,1,1,L), HYSG3D )
-!      !$acc end parallel
-!      !$acc async(4)
+
       CALL ADVEC_3D ( QC3D, FQC3D(1,1,1,L), term4 )
-!      !$acc end parallel
-!      !$acc async(5)
+
       CALL ADVEC_3D ( QI3D, FQI3D(1,1,1,L), term4 )
-!      !$acc end parallel
 #if defined (MICROP3)
-!      !$acc async(6)
       CALL ADVEC_3D ( NC3D, FNC3D(1,1,1,L), term4 )
-!      !$acc end parallel
-!      !$acc async(7)
+
       CALL ADVEC_3D ( NR3D, FNR3D(1,1,1,L), term4 )
-!      !$acc end parallel
-!      !$acc async(8)
+
       CALL ADVEC_3D ( NI3D, FNI3D(1,1,1,L), term4 )
-!      !$acc end parallel
-!      !$acc async(9)
+
       CALL ADVEC_3D ( QRIM3D, FQRIM3D(1,1,1,L), term4 )
-!      !$acc end parallel
-!      !$acc async(10)
+
       CALL ADVEC_3D ( BRIM3D, FBRIM3D(1,1,1,L), term4 )
-!      !$acc end parallel
 #if defined (LIQFRACP3)
-!      !$acc async(11)
       CALL ADVEC_3D ( QILIQ3D, FQILIQ3D(1,1,1,L), term4 )
-!      !$acc end parallel
 
 #endif
 #else
-!      !$acc loop async(12)
       CALL ADVEC_3D ( QS3D, FQS3D(1,1,1,L), term4 )
-!      !$acc end parallel
 !     loop(1) 160
 !      DO  K = 2, NK2
 !      DO  J = 1, MJ1
@@ -106,9 +88,7 @@ CONTAINS
 !      ENDDO
 !      ENDDO
 !      ENDDO
-!      !$acc loop async(13)
       CALL ADVEC_3D ( QG3D, FQG3D(1,1,1,L), term4 )
-!      !$acc end parallel
 !     loop(2) 170
 !      DO 170 K = 2, NK2
 !      DO 170 J = 1, MJ1
@@ -121,19 +101,17 @@ CONTAINS
 #endif
     
       if (ntracer > 0)then
-!      !$acc async(14)
          do nt = 1,ntracer
             CALL ADVEC_3D ( TC3D(mim,mjm,1,nt), FTC3D(1,1,1,L,nt), term4 )
          enddo
       endif
 
 #if defined (CHEM)
-!      !$acc async(15)
          do nt = 1,nchem
             CALL ADVEC_3D ( CHEM3D(mim,mjm,1,nt), FCHEM3D(1,1,1,L,nt), term4 )
          enddo
 #endif
-!      !$acc wait      
+      !$acc update self(FTH3D(:,:,:,L), FQV3D(:,:,:,L), FQR3D(:,:,:,L), FQC3D(:,:,:,L), FQI3D(:,:,:,L), FNC3D(:,:,:,L), FNR3D(:,:,:,L), FNI3D(:,:,:,L), FQRIM3D(:,:,:,L), FBRIM3D(:,:,:,L), FQS3D(:,:,:,L), FTC3D(:,:,:,L,1:ntracer), FCHEM3D(:,:,:,L,1:nchem))
       !$acc end data
 #endif
       call timer_stop('advection')
