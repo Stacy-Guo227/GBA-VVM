@@ -53,7 +53,8 @@ CONTAINS
 
       call nvtxStartRange('advection')
       call timer_start('advection')
-      !$acc data copyin(U3DX,U3DY,W3D,ITYPEW,FNU,RHOU,RHOZ)
+      !$acc data copyin(FNU,RHOU,RHOZ,W3D,ITYPEW,U3DX,U3DY)
+
 
 !      !$acc async(1)
       CALL ADVEC_3D ( TH3D, FTH3D(1,1,1,L), thstd1 )

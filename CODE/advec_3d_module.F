@@ -45,11 +45,10 @@ CONTAINS
 
       call extend_ne(nk3,q,qew,qns,u3dx,uew,u3dy,vns)
 
-!      call nvtxStartRange("Zonal Loop time test (1)")
 !     Zonal advection
-!     loop(1) 320
-      !$acc data present(U3DX,U3DY,W3D,ITYPEW,FNU,RHOU,RHOZ) copyin(UEW,Q,QEW,VNS,QNS) copyout(terma) create(TEMPIZ,TEMPIM,TEMPIV,UPIZ,UPIM,UPIV,UMIZ,UMIM,UMIV,UPSRIZ,UPSRIM,UPSRIV,UMSRIZ,UMSRIM,UMSRIV,FLXIZ,FLXIM,FLXIV)
+      !$acc data copyin(UEW,QEW,VNS,QNS,Q) copyout(terma) create(TEMPIZ,TEMPIM,TEMPIV,UPIZ,UPIM,UPIV,UMIZ,UMIM,UMIV,UPSRIZ,UPSRIM,UPSRIV,UMSRIZ,UMSRIM,UMSRIV,FLXIZ,FLXIM,FLXIV)
 
+!     loop(1) 320
       !$acc parallel async(0)
       !$acc loop collapse (2)
       DO  K = 2, NK2
@@ -240,21 +239,23 @@ CONTAINS
            -ALADV*(UMIV(I,J,2)*(Q(I,J,2)-Q(I,J,3))    &
            +UMSRIV(I,J,2)*UMSRIV(I,J,3)*(Q(I,J,3)-Q(I,J,4)))/3.
       ENDIF
-      ENDDO
-      ENDDO
-      !$acc end parallel
-
-!     loop(16) 547
-      !$acc parallel async(2)
-      !$acc loop collapse (2)
-      DO  J=1,MJ1
-      DO  I=1,MI1
       FLXIV(I,J, 1)= 0.
       FLXIV(I,J,NK2)= 0.
       ENDDO
       ENDDO
       !$acc end parallel
       !$acc wait
+
+!     loop(16) 547
+!      !$acc parallel async(2)
+!      !$acc loop collapse (2)
+!      DO  J=1,MJ1
+!      DO  I=1,MI1
+!      FLXIV(I,J, 1)= 0.
+!      FLXIV(I,J,NK2)= 0.
+!      ENDDO
+!      ENDDO
+!      !$acc end parallel
 
 !     loop(17) 550
       !$acc parallel
@@ -270,6 +271,9 @@ CONTAINS
       terma(I,J,K)=terma(I,J,K)-(FLXIV(I,J,K)-FLXIV(I,J,K-1))*FNU(K)/(2.*DZ)
       terma(I,J,K)=terma(I,J,K)/RHOU(K)
       !termf(I,J,K)=-(FLXI(I,J,K)-FLXI(I,J,K-1))*FNU(K)/(2.*DZ)/RHOU(K)
+      IF(ITYPEW(I,J,K) .NE. 1) THEN
+      terma(I,J,K)=0.
+      ENDIF
       ENDDO
       ENDDO
       ENDDO
@@ -279,18 +283,18 @@ CONTAINS
 
 !ccwut set flux convergence on topo to zero
 !     loop(19)
-      !$acc parallel
-      !$acc loop collapse (3)
-      DO K=2,maxtopo
-      DO J=1,MJ1
-      DO I=1,MI1
-      IF(ITYPEW(I,J,K) .NE. 1) THEN
-      terma(I,J,K)=0.
-      ENDIF
-      ENDDO
-      ENDDO
-      ENDDO
-      !$acc end parallel
+!      !$acc parallel
+!      !$acc loop collapse (3)
+!      DO K=2,maxtopo
+!      DO J=1,MJ1
+!      DO I=1,MI1
+!      IF(ITYPEW(I,J,K) .NE. 1) THEN
+!      terma(I,J,K)=0.
+!      ENDIF
+!      ENDDO
+!      ENDDO
+!      ENDDO
+!      !$acc end parallel
       !$acc end data
 !ccwut 
    END SUBROUTINE advec_3d
