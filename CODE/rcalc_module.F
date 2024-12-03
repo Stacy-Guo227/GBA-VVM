@@ -16,6 +16,7 @@ USE domain_decomposition
 USE nvtx
 
 IMPLICIT NONE
+
 PRIVATE
 
 PUBLIC :: rcalc_3d
@@ -52,62 +53,87 @@ CONTAINS
 
       call nvtxStartRange('advection')
       call timer_start('advection')
-      CALL ADVEC_3D ( TH3D, FTH3D(1,1,1,L), thstd1  )
+      !$acc data copyin(U3DX,U3DY,W3D,ITYPEW,FNU,RHOU,RHOZ)
+
+!      !$acc async(1)
+      CALL ADVEC_3D ( TH3D, FTH3D(1,1,1,L), thstd1 )
+!      !$acc end parallel
 #if defined (PHYSICS)
-
+!      !$acc async(2)
       CALL ADVEC_3D ( QV3D, FQV3D(1,1,1,L), QVSTD )
-  
+!      !$acc end parallel
+!      !$acc async(3)  
       CALL ADVEC_3D ( QR3D, FQR3D(1,1,1,L), HYSG3D )
-      
+!      !$acc end parallel
+!      !$acc async(4)
       CALL ADVEC_3D ( QC3D, FQC3D(1,1,1,L), term4 )
-
+!      !$acc end parallel
+!      !$acc async(5)
       CALL ADVEC_3D ( QI3D, FQI3D(1,1,1,L), term4 )
-
+!      !$acc end parallel
 #if defined (MICROP3)
+!      !$acc async(6)
       CALL ADVEC_3D ( NC3D, FNC3D(1,1,1,L), term4 )
-
+!      !$acc end parallel
+!      !$acc async(7)
       CALL ADVEC_3D ( NR3D, FNR3D(1,1,1,L), term4 )
-
+!      !$acc end parallel
+!      !$acc async(8)
       CALL ADVEC_3D ( NI3D, FNI3D(1,1,1,L), term4 )
-
+!      !$acc end parallel
+!      !$acc async(9)
       CALL ADVEC_3D ( QRIM3D, FQRIM3D(1,1,1,L), term4 )
-
+!      !$acc end parallel
+!      !$acc async(10)
       CALL ADVEC_3D ( BRIM3D, FBRIM3D(1,1,1,L), term4 )
+!      !$acc end parallel
 #if defined (LIQFRACP3)
-
+!      !$acc async(11)
       CALL ADVEC_3D ( QILIQ3D, FQILIQ3D(1,1,1,L), term4 )
+!      !$acc end parallel
+
 #endif
 #else
-
+!      !$acc loop async(12)
       CALL ADVEC_3D ( QS3D, FQS3D(1,1,1,L), term4 )
-      DO 160 K = 2, NK2
-      DO 160 J = 1, MJ1
-      DO 160 I = 1, MI1
-      HYSG3D(I,J,K)=HYSG3D(I,J,K) + TERM4(I,J,K)
-  160 CONTINUE
-
+!      !$acc end parallel
+!     loop(1) 160
+!      DO  K = 2, NK2
+!      DO  J = 1, MJ1
+!      DO  I = 1, MI1
+!      HYSG3D(I,J,K)=HYSG3D(I,J,K) + TERM4(I,J,K)
+!      ENDDO
+!      ENDDO
+!      ENDDO
+!      !$acc loop async(13)
       CALL ADVEC_3D ( QG3D, FQG3D(1,1,1,L), term4 )
-      DO 170 K = 2, NK2
-      DO 170 J = 1, MJ1
-      DO 170 I = 1, MI1
-      HYSG3D(I,J,K)=(HYSG3D(I,J,K) + TERM4(I,J,K)) &
-                               *(HLF/CP)*86400.
-  170 CONTINUE
+!      !$acc end parallel
+!     loop(2) 170
+!      DO 170 K = 2, NK2
+!      DO 170 J = 1, MJ1
+!      DO 170 I = 1, MI1
+!      HYSG3D(I,J,K)=(HYSG3D(I,J,K) + TERM4(I,J,K)) &
+!                               *(HLF/CP)*86400.
+!      ENDDO
+!      ENDDO
+!      ENDDO
 #endif
     
       if (ntracer > 0)then
+!      !$acc async(14)
          do nt = 1,ntracer
             CALL ADVEC_3D ( TC3D(mim,mjm,1,nt), FTC3D(1,1,1,L,nt), term4 )
          enddo
       endif
 
 #if defined (CHEM)
+!      !$acc async(15)
          do nt = 1,nchem
             CALL ADVEC_3D ( CHEM3D(mim,mjm,1,nt), FCHEM3D(1,1,1,L,nt), term4 )
          enddo
 #endif
-
-
+!      !$acc wait      
+      !$acc end data
 #endif
       call timer_stop('advection')
       call nvtxEndRange

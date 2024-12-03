@@ -12,7 +12,7 @@ USE workcom
 USE utils
 USE timer
 USE domain_decomposition
-use multigrid
+USE multigrid
 
 IMPLICIT NONE
 PRIVATE
@@ -43,15 +43,18 @@ CONTAINS
 !
 !     GENERATE RIGHT SIDE OF EQUATION
 !
-      DO 120 K = 1, Nk2-2
-      DO 120 J = 1, Mj1
-      DO 120 I = 1, mi1
+!     loop(1) 120
+      DO  K = 1, Nk2-2
+      DO  J = 1, Mj1
+      DO  I = 1, mi1
 !ccwut      YTEM(I,J,K)=(Z3DY(I,J,K+1)-Z3DY(I-1,J,K+1))*RHOZ(K+1)/DX  &
 !        + (Z3DX(I,J,K+1)-Z3DX(I,J-1,K+1))*RHOZ(K+1)/DYNEW
       YTEM(I,J,K)=(Z3DYT(I,J,K+1)-Z3DYT(I-1,J,K+1))*RHOZ(K+1)/DX  &
         + (Z3DXT(I,J,K+1)-Z3DXT(I,J-1,K+1))*RHOZ(K+1)/DYNEW
 
-  120 CONTINUE
+      ENDDO
+      ENDDO
+      ENDDO
 
       call timer_start('MGsolver_3d')
       tmp_y = 0._dbl_kind
@@ -67,12 +70,13 @@ CONTAINS
 
       CALL BOUND_ARB (NK2,W3D)
 
-      DO 150 J = mjm,mjp
-      DO 150 I = mim,mip
+!     loop(2) 150
+      DO  J = mjm,mjp
+      DO  I = mim,mip
       W3D(I,J,  1) = 0. 
       W3D(I,J,NK2) = 0. 
-  150 CONTINUE
-
+      ENDDO
+      ENDDO
 
       END SUBROUTINE DIRECT_3D
             

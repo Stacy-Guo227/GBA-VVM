@@ -57,77 +57,99 @@ CONTAINS
       CALL XYAVG1(UTOP,nhalo,mi1,mj1,UTOPM)
 
 !      call bound_arb(1,UTOP)
-
-      DO 210 J=1,MJ1
-      DO 210 I=1,MI1
+!     loop(1) 210
+      DO  J=1,MJ1
+      DO  I=1,MI1
       U3DX(I,J,NK2) = UTMN + (UTOP(I,J) - UTOPM) 
-  210 CONTINUE
+      ENDDO
+      ENDDO
 
-      DO 212 K=NK1,1,-1
-      DO 212 J=1,MJ1
-      DO 212 I=1,MI1
+!     loop(2) 212
+      DO  K=NK1,1,-1
+      DO  J=1,MJ1
+      DO  I=1,MI1
       U3DX(I,J,K)=U3DX(I,J,K+1)        &
 !ccwut            -((W3D(I+1,J,K)-W3D(I,J,K))/DX-Z3DY(I,J,K))*DZ/FNZ(K)
             -((W3D(I+1,J,K)-W3D(I,J,K))/DX-Z3DYT(I,J,K))*DZ/FNZ(K)
 
-  212 CONTINUE
+      ENDDO
+      ENDDO
+      ENDDO
 
-      DO 240 J=1,MJ1
-      DO 240 I=1,MI1
+!     loop(3) 240
+      DO  J=1,MJ1
+      DO  I=1,MI1
       U3DX(I,J,NK3)=U3DX(I,J,NK2)      &
         +((W3D(I+1,J,NK2)-W3D(I,J,NK2))/DX-Z3DY(I,J,NK2))*DZ/FNZ(NK2)
 
-  240 CONTINUE
+      ENDDO
+      ENDDO
       
 #if defined (PERIODIC)
+!update?
       call bound_arb(nk3,u3dx)
 #endif
 
       CALL XYAVG1(VTOP,nhalo,mi1,mj1,VTOPM)
 
-      DO 310 J=1,MJ1
-      DO 310 I=1,MI1
+!     loop(4) 310    
+      DO  J=1,MJ1
+      DO  I=1,MI1
       U3DY(I,J,NK2) = VTMN + VTOP(I,J) - VTOPM
-  310 CONTINUE
+      ENDDO
+      ENDDO
 
-      DO 312 K=NK1,1,-1
-      DO 312 J=1,MJ1
-      DO 312 I=1,MI1
+!     loop(5) 312
+      DO  K=NK1,1,-1
+      DO  J=1,MJ1
+      DO  I=1,MI1
       U3DY(I,J,K)=U3DY(I,J,K+1)          &
 !ccwut        -((W3D(I,J+1,K)-W3D(I,J,K))/DYNEW-Z3DX(I,J,K))*DZ/FNZ(K)
         -((W3D(I,J+1,K)-W3D(I,J,K))/DYNEW-Z3DXT(I,J,K))*DZ/FNZ(K)
 
-  312 CONTINUE
+      ENDDO
+      ENDDO
+      ENDDO
 
-      DO 340 J=1,MJ1
-      DO 340 I=1,MI1
+!     loop(6) 340
+      DO  J=1,MJ1
+      DO  I=1,MI1
       U3DY(I,J,NK3)=U3DY(I,J,NK2)        &
         +((W3D(I,J+1,NK2)-W3D(I,J,NK2))/DYNEW-Z3DX(I,J,NK2))*DZ/FNZ(NK2)
 
-  340 CONTINUE
+      ENDDO
+      ENDDO
  
  
 #if defined (PERIODIC)
+! update?
       call bound_arb(nk3,u3dy)
 #endif
 
 !  Calculating the deformation: (3.32) in Jung & Arakawa (2005) 
 
-      DO 400 K = 1, NK3
-      DO 400 J = 1, MJ1
-      DO 400 I = 1, MI1
+!     loop(7) 400
+      DO  K = 1, NK3
+      DO  J = 1, MJ1
+      DO  I = 1, MI1
       DEFXY(I,J,K)=(U3DY(I+1,J,K)-U3DY(I,J,K))/DX      &
                   +(U3DX(I,J+1,K)-U3DX(I,J,K))/DYNEW
-  400 CONTINUE
+      ENDDO
+      ENDDO
+      ENDDO
 
-      DO 410 K = 1, NK2
-      DO 410 J = 1, MJ1
-      DO 410 I = 1, MI1
+!     loop(8) 410
+      DO  K = 1, NK2
+      DO  J = 1, MJ1
+      DO  I = 1, MI1
       DEFXZ(I,J,K)=(W3D(I+1,J,K)-W3D(I,J,K))/DX          &
                   +(U3DX(I,J,K+1)-U3DX(I,J,K))*FNZ(K)/DZ 
       DEFYZ(I,J,K)=(W3D(I,J+1,K)-W3D(I,J,K))/DYNEW       &
                   +(U3DY(I,J,K+1)-U3DY(I,J,K))*FNZ(K)/DZ
-  410 CONTINUE
+      ENDDO
+      ENDDO
+      ENDDO
+
 
       CALL BOUND_ARB (NK3,DEFXY)
       CALL BOUND_ARB (NK2,DEFXZ)
